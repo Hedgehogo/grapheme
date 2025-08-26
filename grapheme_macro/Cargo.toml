@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Hedgehogo/grapheme"
 readme = "README.md"
 keywords = ["text", "unicode", "grapheme", "graphemes"]
-categories = ["text-processing", "data-structures", "parsing-tools"]
+categories = ["text-processing", "data-structures"]
 edition = "2024"
 
 [lib]
