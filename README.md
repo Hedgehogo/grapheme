@@ -1,6 +1,6 @@
-grapheme_macro
+grapheme
 =========
 
 Workspace for the crate [`grapheme`](https://crates.io/crates/grapheme).
 
-*[See also the `grapheme` crate.](https://crates.io/crates/grapheme)*
+*[See also the `grapheme` README.](./grapheme/README.md)*
