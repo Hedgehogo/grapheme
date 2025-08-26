@@ -12,5 +12,5 @@ edition = "2024"
 
 [dependencies]
 smallvec = "1"
-grapheme_macro = { path = "./../grapheme_macro" }
+grapheme_macro = "1"
 unicode-segmentation = { workspace = true }
