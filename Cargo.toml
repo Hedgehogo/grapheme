@@ -1,0 +1,6 @@
+[workspace]
+resolver = "2"
+members = ["grapheme", "grapheme_macro"]
+
+[workspace.dependencies]
+unicode-segmentation = "1"

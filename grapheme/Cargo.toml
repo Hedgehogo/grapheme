@@ -1,0 +1,9 @@
+[package]
+name = "grapheme"
+version = "1.0.0"
+edition = "2024"
+
+[dependencies]
+smallvec = "1"
+grapheme_macro = { path = "./../grapheme_macro" }
+unicode-segmentation = { workspace = true }

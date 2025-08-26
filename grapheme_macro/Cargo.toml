@@ -1,0 +1,12 @@
+[package]
+name = "grapheme_macro"
+version = "1.0.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+unicode-segmentation = { workspace = true }
