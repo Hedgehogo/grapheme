@@ -59,7 +59,7 @@ type GraphemeOwnedInner = SmallVec<[u8; USIZE_BYTES]>;
 /// not exceed this size, it is stored in this buffer, otherwise it is located
 /// in the heap, and the buffer contains capacity and a pointer to memory in
 /// the heap.
-#[derive(Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct GraphemeOwned(GraphemeOwnedInner);
 
@@ -158,5 +158,188 @@ impl From<Box<Grapheme>> for GraphemeOwned {
 impl From<GraphemeOwned> for Box<Grapheme> {
     fn from(value: GraphemeOwned) -> Self {
         value.into_box()
+    }
+}
+
+/// `MaybeGraphemeOwned` is an optimized version of `Option<GraphemeOwned>`.
+///
+/// # Examples
+///
+/// You can create a `GraphemeOwned` from a grapheme literal with
+/// `GraphemeOwned::from`:
+///
+/// ```
+/// # use grapheme::prelude::*;
+/// let h = GraphemeOwned::from(g!('h'));
+/// ```
+///
+/// # Deref
+///
+/// `GraphemeOwned` implements <code>[Deref]<Target = [Grapheme]></code>, and
+/// so inherits all of [`Grapheme`]’s methods. In addition, this means that you
+/// can pass a `GraphemeOwned` to a function which takes a
+/// <code>&[Grapheme]</code> by using an ampersand (&):
+///
+/// ```
+/// # use grapheme::prelude::*;
+/// fn takes_grapheme(g: &Grapheme) { }
+///
+/// let g = GraphemeOwned::from(g!('h'));
+///
+/// takes_grapheme(&g);
+/// ```
+///
+/// This will create a <code>&[Grapheme]</code> from the `GraphemeOwned` and
+/// pass it in. This conversion is very inexpensive, and so generally,
+/// functions will accept <code>&[Grapheme]</code>s as arguments unless they
+/// need a `GraphemeOwned` for some specific reason.
+///
+/// # Representation
+///
+/// The `GraphemeOwned` contains a statically allocated buffer equal to usize
+/// in size (usually eight u8). As long as the grapheme encoded in UTF-8 does
+/// not exceed this size, it is stored in this buffer, otherwise it is located
+/// in the heap, and the buffer contains capacity and a pointer to memory in
+/// the heap.
+#[derive(Default, Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct MaybeGraphemeOwned(GraphemeOwnedInner);
+
+impl MaybeGraphemeOwned {
+    /// Converts from `Option<GraphemeOwned>` to `MaybeGraphemeOwned`.
+    pub fn from_option(value: Option<GraphemeOwned>) -> Self {
+        Self(value.map(|grapheme| grapheme.0).unwrap_or_default())
+    }
+
+    /// Converts from `MaybeGraphemeOwned` to `Option<GraphemeOwned>`.
+    pub fn into_option(self) -> Option<GraphemeOwned> {
+        (!self.0.is_empty()).then(|| GraphemeOwned(self.0))
+    }
+
+    /// Returns `true` if the option is a [`Some`] value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let x: MaybeGraphemeOwned = Some(g!('h').to_owned()).into();
+    /// assert_eq!(x.is_some(), true);
+    ///
+    /// let x: MaybeGraphemeOwned = None.into();
+    /// assert_eq!(x.is_some(), false);
+    /// ```
+    #[must_use = "if you intended to assert that this has a value, consider `.unwrap()` instead"]
+    #[inline]
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
+    }
+
+    /// Returns `true` if the option is a [`None`] value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let x: MaybeGraphemeOwned = Some(g!('h').to_owned()).into();
+    /// assert_eq!(x.is_none(), false);
+    ///
+    /// let x: MaybeGraphemeOwned = None.into();
+    /// assert_eq!(x.is_none(), true);
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Converts from `&MaybeGraphemeOwned` to `Option<&GraphemeOwned>`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let grapheme: MaybeGraphemeOwned = Some(g!('h').to_owned()).into();
+    /// // First, cast `MaybeGraphemeOwned` to `Option<&GraphemeOwned>` with
+    /// // `as_ref`, then consume *that* with `map`, leaving `text` on the
+    /// // stack.
+    /// let length: Option<usize> = grapheme.as_ref().map(|g| g.len());
+    /// println!("still can print grapheme: {grapheme:?}");
+    /// ```
+    pub fn as_ref(&self) -> Option<&GraphemeOwned> {
+        self.is_some().then(|| {
+            let inner = &self.0;
+            // SAFETY: This is ok because `&GraphemeOwned` is `#[repr[transparent]]`.
+            unsafe { &*(inner as *const GraphemeOwnedInner as *const GraphemeOwned) }
+        })
+    }
+
+    /// Converts from `&mut MaybeGraphemeOwned` to `Option<&mut GraphemeOwned>`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let mut x: MaybeGraphemeOwned = Some(g!('h').to_owned()).into();
+    /// match x.as_mut() {
+    ///     Some(v) => *v = g!('e').into(),
+    ///     None => {},
+    /// }
+    /// assert_eq!(x, Some(g!('e').to_owned()).into());
+    /// ```
+    pub fn as_mut(&mut self) -> Option<&mut GraphemeOwned> {
+        self.is_some().then(|| {
+            let inner = &mut self.0;
+            // SAFETY: This is ok because `&GraphemeOwned` is `#[repr[transparent]]`.
+            unsafe { &mut *(inner as *mut GraphemeOwnedInner as *mut GraphemeOwned) }
+        })
+    }
+
+    /// Converts from `MaybeGraphemeOwned` (or `&MaybeGraphemeOwned`) to
+    /// `Option<&Grapheme>`.
+    ///
+    /// Leaves the original `MaybeGraphemeOwned` in-place, creating a new one
+    /// with a reference to the original one, additionally coercing the
+    /// contents via [`Deref`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let x: MaybeGraphemeOwned = Some(g!('h').to_owned()).into();
+    /// assert_eq!(x.as_deref(), Some(g!('h')));
+    ///
+    /// let x: MaybeGraphemeOwned = None.into();
+    /// assert_eq!(x.as_deref(), None);
+    /// ```
+    pub fn as_deref(&self) -> Option<&Grapheme> {
+        self.as_ref().map(|grapheme| &**grapheme)
+    }
+
+    /// Converts from `MaybeGraphemeOwned` (or `&mut MaybeGraphemeOwned`) to
+    /// `Option<&mut Grapheme>`
+    ///
+    /// Leaves the original `MaybeGraphemeOwned` in-place, creating a new one
+    /// containing a mutable reference to the inner type's [`Deref::Target`]
+    /// type.
+    pub fn as_deref_mut(&mut self) -> Option<&mut Grapheme> {
+        self.as_mut().map(|grapheme| &mut **grapheme)
+    }
+}
+
+impl fmt::Debug for MaybeGraphemeOwned {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
+
+impl From<Option<GraphemeOwned>> for MaybeGraphemeOwned {
+    fn from(value: Option<GraphemeOwned>) -> Self {
+        Self::from_option(value)
+    }
+}
+
+impl From<MaybeGraphemeOwned> for Option<GraphemeOwned> {
+    fn from(value: MaybeGraphemeOwned) -> Self {
+        value.into_option()
     }
 }

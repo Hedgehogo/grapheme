@@ -2,6 +2,7 @@
 //!
 //! *[See also the `Grapheme` type.](Grapheme)*
 
+use crate::GraphemeOwned;
 use std::{
     fmt,
     str::{Bytes, Chars},
@@ -909,6 +910,11 @@ impl Grapheme {
     #[inline]
     pub const fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
+    }
+
+    /// Converts from `&Grapheme` to `GraphemeOwned`.
+    pub fn to_owned(&self) -> GraphemeOwned {
+        GraphemeOwned::from_ref(self)
     }
 
     /// Splits the grapheme into the first code point and the remaining code points.

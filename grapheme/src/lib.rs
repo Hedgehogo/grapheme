@@ -6,10 +6,10 @@ pub mod graphemes;
 
 pub use grapheme::Grapheme;
 pub use grapheme_macro::{g, gs};
-pub use grapheme_owned::GraphemeOwned;
+pub use grapheme_owned::{GraphemeOwned, MaybeGraphemeOwned};
 pub use graphemes::Graphemes;
 
 /// Commonly used functions, traits and types.
 pub mod prelude {
-    pub use super::{Grapheme, GraphemeOwned, Graphemes, g, gs};
+    pub use super::{Grapheme, GraphemeOwned, Graphemes, MaybeGraphemeOwned, g, gs};
 }
