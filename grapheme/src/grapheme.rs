@@ -10,9 +10,14 @@ use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Grapheme` type represents a single character. More specifically, since
 /// ‘character’ isn’t a well-defined concept in Unicode, `Grapheme` is a
-/// ‘extended Unicode grapheme cluster’. This type also resembles a string
-/// slice, and just as it is more often found in the borrowed form `&Grapheme`
-/// and can also contain other graphemes inside.
+/// ‘extended Unicode grapheme cluster’. It's something between `str` and
+/// `char`.  Like `char`, it is a type representing a single unit of text and
+/// therefore has methods such as [`is_whitespace`].  But just like `str`, it
+/// is a type of dynamic size and is more often found in the borrowed form of
+/// `&Grapheme`. It contains a slice of a string, and it can also contain
+/// smaller graphemes inside itself.
+///
+/// [`is_whitespace`]: #method.is_whitespace
 ///
 /// # Basic Usage
 ///
@@ -132,6 +137,7 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
+    #[doc(alias = "from_chars", alias = "from_usvs", alias = "from_str")]
     pub fn from_code_points(value: &str) -> Option<&Self> {
         let mut iter = value.graphemes(true);
         matches!((iter.next(), iter.next()), (Some(_), None))
@@ -175,6 +181,11 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
+    #[doc(
+        alias = "from_chars_unchecked",
+        alias = "from_str_unchecked",
+        alias = "from_usvs_unchecked"
+    )]
     pub const unsafe fn from_code_points_unchecked(value: &str) -> &Self {
         // SAFETY: This is ok because Grapheme is #[repr(transparent)]
         unsafe { &*(value as *const str as *const Self) }
@@ -230,6 +241,7 @@ impl Grapheme {
     #[expect(clippy::len_without_is_empty)]
     #[must_use]
     #[inline]
+    #[doc(alias = "len_utf8")]
     pub const fn len(&self) -> usize {
         self.as_str().len()
     }
@@ -790,6 +802,7 @@ impl Grapheme {
     /// assert!(!non_code_point.is_code_point());
     /// ```
     #[inline]
+    #[doc(alias = "is_char", alias = "is_usv")]
     pub fn is_code_point(&self) -> bool {
         let mut iter = self.0.chars();
         matches!((iter.next(), iter.next()), (Some(_), None))
@@ -803,6 +816,7 @@ impl Grapheme {
     /// needing to check again for itself whether the value is one code point.
     #[must_use]
     #[inline]
+    #[doc(alias = "to_char", alias = "to_usv")]
     pub fn to_code_point(&self) -> Option<char> {
         let mut iter = self.0.chars();
         if let (Some(c), None) = (iter.next(), iter.next()) {
@@ -838,6 +852,7 @@ impl Grapheme {
     /// assert_eq!(None, code_points.next());
     /// ```
     #[inline]
+    #[doc(alias = "chars", alias = "usvs")]
     pub fn code_points(&self) -> Chars<'_> {
         self.0.chars()
     }

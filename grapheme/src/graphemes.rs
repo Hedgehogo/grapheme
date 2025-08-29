@@ -64,6 +64,7 @@ pub struct Graphemes(str);
 impl Graphemes {
     #[must_use]
     #[inline]
+    #[doc(alias = "from_chars", alias = "from_usvs", alias = "from_str")]
     /// Converts a `&str` into a `&Graphemes`.
     pub fn from_code_points(inner: &str) -> &Self {
         // SAFETY: This is ok because Graphemes is #[repr(transparent)]
@@ -125,6 +126,7 @@ impl Graphemes {
     /// assert_eq!(None, code_points.next());
     /// ```
     #[inline]
+    #[doc(alias = "chars", alias = "usvs")]
     pub fn code_points(&self) -> Chars<'_> {
         self.0.chars()
     }
