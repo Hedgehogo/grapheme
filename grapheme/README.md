@@ -1,12 +1,15 @@
 grapheme
 =========
+[![Crates.io](https://img.shields.io/crates/v/grapheme.svg)](https://crates.io/crates/grapheme)
+[![Documentation](https://docs.rs/grapheme/badge.svg)](https://docs.rs/grapheme)
 
-This crate offers types related to Unicode extended grapheme clusters, which
+This crate offers types related to extended Unicode grapheme clusters, which
 are replacements for the standard types `char` and `str`.
 
 ## Features
 
 - Replacement for the standard library `char` and `str` types.
+- Optimized owning grapheme type.
 - Macros `g!` and `gs!`, used as literals to create crate types, performing
   all necessary checks at compile time.
 
