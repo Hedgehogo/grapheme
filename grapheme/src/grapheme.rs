@@ -2,7 +2,7 @@
 //!
 //! *[See also the `Grapheme` type.](Grapheme)*
 
-use crate::GraphemeOwned;
+use crate::{Categorized, GraphemeOwned};
 use std::{
     fmt,
     str::{Bytes, Chars},
@@ -506,7 +506,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_control(&self) -> bool {
-        self.to_code_point().is_some_and(char::is_control)
+        self.as_str() == "\r\n" || self.to_code_point().is_some_and(char::is_control)
     }
 
     /// Checks if the value is within the ASCII range.
@@ -701,7 +701,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_graphic(&self) -> bool {
-        self.to_code_point().is_some_and(|c| c.is_ascii_graphic())
+        self.code_points().any(|c| c.is_ascii_graphic())
     }
 
     /// Checks if the value is an ASCII whitespace character:
@@ -934,6 +934,36 @@ impl Grapheme {
         // The operation never falls because the grapheme always contains at least one code point.
         let first = iter.next().unwrap();
         (first, iter.as_str())
+    }
+
+    /// Splits the grapheme into the remaining code points and the last code point.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let (rest, code_point) = g!("y̆").split_rev();
+    ///
+    /// assert_eq!("y", rest);
+    /// assert_eq!('\u{0306}', code_point);
+    /// ```
+    #[inline]
+    pub fn split_rev(&self) -> (&str, char) {
+        let mut iter = self.0.char_indices().rev();
+        // Never falls because the grapheme always contains at least one code point.
+        let (i, last) = iter.next().unwrap();
+        let (rest, _) = self.0.split_at(i);
+        (rest, last)
+    }
+
+    #[expect(dead_code)]
+    pub(crate) fn categorize(&self) -> Categorized {
+        if self.is_control() {
+            return Categorized::Control(self);
+        }
+
+        let (_rest, _last) = self.split_rev();
+        todo!()
     }
 }
 
