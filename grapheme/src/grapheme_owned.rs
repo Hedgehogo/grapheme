@@ -24,11 +24,11 @@ type GraphemeOwnedInner = SmallVec<[u8; USIZE_BYTES]>;
 /// # Examples
 ///
 /// You can create a `GraphemeOwned` from a grapheme literal with
-/// `GraphemeOwned::from`:
+/// `GraphemeOwned::from_ref` or [`Grapheme::to_owned`]:
 ///
 /// ```
 /// # use grapheme::prelude::*;
-/// let h = GraphemeOwned::from(g!('h'));
+/// let h = g!('h').to_owned();
 /// ```
 ///
 /// # Deref
@@ -165,42 +165,18 @@ impl From<GraphemeOwned> for Box<Grapheme> {
 ///
 /// # Examples
 ///
-/// You can create a `GraphemeOwned` from a grapheme literal with
-/// `GraphemeOwned::from`:
+/// You can create `MaybeGraphemeOwned` from `Option<GraphemeOwned>` using
+/// [`MaybeGraphemeOwned::from`]:
 ///
 /// ```
 /// # use grapheme::prelude::*;
-/// let h = GraphemeOwned::from(g!('h'));
+/// let h = MaybeGraphemeOwned::from(Some(g!('h').to_owned()));
 /// ```
-///
-/// # Deref
-///
-/// `GraphemeOwned` implements <code>[Deref]<Target = [Grapheme]></code>, and
-/// so inherits all of [`Grapheme`]’s methods. In addition, this means that you
-/// can pass a `GraphemeOwned` to a function which takes a
-/// <code>&[Grapheme]</code> by using an ampersand (&):
-///
-/// ```
-/// # use grapheme::prelude::*;
-/// fn takes_grapheme(g: &Grapheme) { }
-///
-/// let g = GraphemeOwned::from(g!('h'));
-///
-/// takes_grapheme(&g);
-/// ```
-///
-/// This will create a <code>&[Grapheme]</code> from the `GraphemeOwned` and
-/// pass it in. This conversion is very inexpensive, and so generally,
-/// functions will accept <code>&[Grapheme]</code>s as arguments unless they
-/// need a `GraphemeOwned` for some specific reason.
 ///
 /// # Representation
 ///
-/// The `GraphemeOwned` contains a statically allocated buffer equal to usize
-/// in size (usually eight u8). As long as the grapheme encoded in UTF-8 does
-/// not exceed this size, it is stored in this buffer, otherwise it is located
-/// in the heap, and the buffer contains capacity and a pointer to memory in
-/// the heap.
+/// `MaybeGraphemeOwned` is arranged in the same way as [`GraphemeOwned`], but
+/// has a buffer length of zero when it contains `None`.
 #[derive(Default, Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct MaybeGraphemeOwned(GraphemeOwnedInner);
@@ -213,7 +189,7 @@ impl MaybeGraphemeOwned {
 
     /// Converts from `MaybeGraphemeOwned` to `Option<GraphemeOwned>`.
     pub fn into_option(self) -> Option<GraphemeOwned> {
-        (!self.0.is_empty()).then(|| GraphemeOwned(self.0))
+        self.is_some().then(|| GraphemeOwned(self.0))
     }
 
     /// Returns `true` if the option is a [`Some`] value.
@@ -312,7 +288,7 @@ impl MaybeGraphemeOwned {
     /// assert_eq!(x.as_deref(), None);
     /// ```
     pub fn as_deref(&self) -> Option<&Grapheme> {
-        self.as_ref().map(|grapheme| &**grapheme)
+        self.as_ref().map(|grapheme| grapheme.deref())
     }
 
     /// Converts from `MaybeGraphemeOwned` (or `&mut MaybeGraphemeOwned`) to
@@ -322,7 +298,7 @@ impl MaybeGraphemeOwned {
     /// containing a mutable reference to the inner type's [`Deref::Target`]
     /// type.
     pub fn as_deref_mut(&mut self) -> Option<&mut Grapheme> {
-        self.as_mut().map(|grapheme| &mut **grapheme)
+        self.as_mut().map(|grapheme| grapheme.deref_mut())
     }
 }
 
