@@ -4,9 +4,12 @@
 
 use crate::{Categorized, GraphemeOwned};
 use std::{
+    cmp::PartialEq,
     fmt,
+    hash::Hash,
     str::{Bytes, Chars},
 };
+use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Grapheme` type represents a single character. More specifically, since
@@ -91,7 +94,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// assert_eq!(g, Some(strange));
 /// ```
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Eq)]
 #[repr(transparent)]
 pub struct Grapheme(str);
 
@@ -981,6 +984,18 @@ impl fmt::Debug for Grapheme {
 impl fmt::Display for Grapheme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl PartialEq for Grapheme {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.nfd().eq(other.0.nfd())
+    }
+}
+
+impl Hash for Grapheme {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
     }
 }
 

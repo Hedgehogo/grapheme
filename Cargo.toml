@@ -4,3 +4,4 @@ members = ["grapheme", "grapheme_macro"]
 
 [workspace.dependencies]
 unicode-segmentation = "1"
+unicode-normalization = "0.1"

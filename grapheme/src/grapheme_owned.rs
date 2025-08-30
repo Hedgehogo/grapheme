@@ -6,6 +6,7 @@ use super::Grapheme;
 use smallvec::SmallVec;
 use std::{
     fmt,
+    hash::Hash,
     ops::{Deref, DerefMut},
     str,
 };
@@ -59,7 +60,7 @@ type GraphemeOwnedInner = SmallVec<[u8; USIZE_BYTES]>;
 /// not exceed this size, it is stored in this buffer, otherwise it is located
 /// in the heap, and the buffer contains capacity and a pointer to memory in
 /// the heap.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Eq)]
 #[repr(transparent)]
 pub struct GraphemeOwned(GraphemeOwnedInner);
 
@@ -140,6 +141,18 @@ impl fmt::Debug for GraphemeOwned {
 impl fmt::Display for GraphemeOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.as_grapheme(), f)
+    }
+}
+
+impl PartialEq for GraphemeOwned {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref() == other.deref()
+    }
+}
+
+impl Hash for GraphemeOwned {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
     }
 }
 
@@ -304,7 +317,7 @@ impl MaybeGraphemeOwned {
 
 impl fmt::Debug for MaybeGraphemeOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_ref().fmt(f)
+        fmt::Debug::fmt(&self.as_ref(), f)
     }
 }
 

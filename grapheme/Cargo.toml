@@ -13,4 +13,6 @@ edition = "2024"
 [dependencies]
 smallvec = "1"
 grapheme_macro = "1"
+ucd = "0.1"
 unicode-segmentation = { workspace = true }
+unicode-normalization = { workspace = true }
