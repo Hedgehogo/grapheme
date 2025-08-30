@@ -2,13 +2,14 @@
 //!
 //! *[See also the `Grapheme` type.](Grapheme)*
 
-use crate::{Categorized, GraphemeOwned};
+use crate::{GraphemeOwned, Modification, to_modified};
 use std::{
     cmp::PartialEq,
     fmt,
     hash::Hash,
     str::{Bytes, Chars},
 };
+use ucd::Codepoint;
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -363,7 +364,7 @@ impl Grapheme {
         self.to_code_point().and_then(|c| c.to_digit(radix))
     }
 
-    /// Returns `true` if all code points have the `Alphabetic` property.
+    /// Returns `true` if all code points inside are `Alphabetic`, or diacritics.
     ///
     /// `Alphabetic` is described in Chapter 4 (Character Properties) of the [Unicode Standard] and
     /// specified in the [Unicode Character Database][ucd] [`DerivedCoreProperties.txt`].
@@ -380,6 +381,8 @@ impl Grapheme {
     /// # use grapheme::prelude::*;
     /// assert!(g!('a').is_alphabetic());
     /// assert!(g!('京').is_alphabetic());
+    /// assert!(g!("y̆").is_alphabetic());
+    /// assert!(g!("yͧ").is_alphabetic());
     ///
     /// let c = g!('💝');
     /// // love is many things, but it is not alphabetic
@@ -387,7 +390,18 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn is_alphabetic(&self) -> bool {
-        self.code_points().all(char::is_alphabetic)
+        match to_modified(self) {
+            Some((grapheme, modification)) => {
+                (match modification {
+                    Modification::Extend(c) => c.is_diacritic() || c.is_alphabetic(),
+                    Modification::SpacingMark(c) => c.is_diacritic() || c.is_alphabetic(),
+                    Modification::Prepend(c) => c.is_diacritic() || c.is_alphabetic(),
+                    _ => false,
+                }) && grapheme.is_alphabetic()
+            }
+
+            _ => self.code_points().all(char::is_alphabetic),
+        }
     }
 
     /// Returns `true` if this `Grapheme` satisfies either [`is_alphabetic()`] or [`is_numeric()`].
@@ -413,7 +427,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_alphanumeric(&self) -> bool {
-        self.code_points().all(char::is_alphanumeric)
+        self.is_numeric() || self.is_alphabetic()
     }
 
     /// Returns `true` if all code points has one of the general categories for numbers.
@@ -958,23 +972,13 @@ impl Grapheme {
         let (rest, _) = self.0.split_at(i);
         (rest, last)
     }
-
-    #[expect(dead_code)]
-    pub(crate) fn categorize(&self) -> Categorized {
-        if self.is_control() {
-            return Categorized::Control(self);
-        }
-
-        let (_rest, _last) = self.split_rev();
-        todo!()
-    }
 }
 
 impl fmt::Debug for Grapheme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("g'")?;
         for i in self.as_str().chars() {
-            fmt::Debug::fmt(&i.escape_debug(), f)?;
+            fmt::Display::fmt(&i.escape_default(), f)?;
         }
         f.write_str("'")?;
         Ok(())
