@@ -10,11 +10,12 @@ pub(crate) struct Conjunct<'g> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Modification<'g> {
-    Extend(char),           // GB9
-    Zwj,                    // GB9
-    SpacingMark(char),      // GB9a
-    Prepend(char),          // GB9b
-    Conjunct(Conjunct<'g>), // GB9c
+    Extend(char),               // GB9
+    Zwj,                        // GB9
+    SpacingMark(char),          // GB9a
+    Prepend(char),              // GB9b
+    Conjunct(Conjunct<'g>),     // GB9c
+    ExtendedPictographic(char), // GB11
 }
 
 impl<'g> Modification<'g> {
@@ -93,6 +94,20 @@ fn to_conjunct(grapheme: &Grapheme) -> Option<(&Grapheme, Conjunct)> {
     None
 }
 
+fn to_extended_pictographic(grapheme: &Grapheme) -> Option<(&Grapheme, char)> {
+    let mut iter = grapheme.as_str().char_indices().rev();
+    let (_, emoji) = iter.next().unwrap();
+    let (zwj_i, zwj) = iter.next().unwrap();
+
+    if zwj == '\u{200D}' {
+        let (rest, _) = grapheme.as_str().split_at(zwj_i);
+        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        return Some((grapheme, emoji));
+    }
+
+    None
+}
+
 pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modification)> {
     if grapheme.is_code_point() {
         return None;
@@ -126,7 +141,15 @@ pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modificatio
         return Some((grapheme, Modification::Prepend(first)));
     }
 
-    to_conjunct(grapheme).map(|(rest, conjunct)| (rest, Modification::Conjunct(conjunct)))
+    if let Some((rest, conjunct)) = to_conjunct(grapheme) {
+        return Some((rest, Modification::Conjunct(conjunct)));
+    }
+
+    if let Some((rest, emoji)) = to_extended_pictographic(grapheme) {
+        return Some((rest, Modification::ExtendedPictographic(emoji)));
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -134,7 +157,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_categorize() {
+    fn test_to_modified() {
         let g = |s| Grapheme::from_code_points(s).unwrap();
         assert_eq!(
             to_modified(g("y̆")),
@@ -159,6 +182,10 @@ mod tests {
         assert_eq!(
             to_modified(g("र्क")),
             Some((g("क"), Modification::conjunct(g("र"), '्', "")))
+        );
+        assert_eq!(
+            to_modified(g("👁‍🗨")),
+            Some((g("👁"), Modification::ExtendedPictographic('🗨')))
         );
         assert_eq!(to_modified(g("a")), None);
     }

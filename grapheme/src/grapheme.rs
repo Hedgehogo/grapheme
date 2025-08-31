@@ -9,7 +9,7 @@ use std::{
     hash::Hash,
     str::{Bytes, Chars},
 };
-use ucd::Codepoint;
+use ucd::{Codepoint, GraphemeClusterBreak, UnicodeCategory};
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -364,7 +364,12 @@ impl Grapheme {
         self.to_code_point().and_then(|c| c.to_digit(radix))
     }
 
-    /// Returns `true` if all code points inside are `Alphabetic`, or diacritics.
+    /// Returns `true` if decomposing a grapheme into components yields a
+    /// result where:
+    /// - All independent code points are alphabetic.
+    /// - All non-independent code points are diacritics or alphabetic.
+    /// - The decomposition does not contain erroneous sequences such as
+    ///   `InCB=Extend` following `InCB=Linker`.
     ///
     /// `Alphabetic` is described in Chapter 4 (Character Properties) of the [Unicode Standard] and
     /// specified in the [Unicode Character Database][ucd] [`DerivedCoreProperties.txt`].
@@ -440,7 +445,7 @@ impl Grapheme {
         self.is_numeric() || self.is_alphabetic()
     }
 
-    /// Returns `true` if all code points has one of the general categories for numbers.
+    /// Returns `true` if the only code point has one of the general categories for numbers.
     ///
     /// The general categories for numbers (`Nd` for decimal digits, `Nl` for letter-like numeric
     /// characters, and `No` for other numeric characters) are specified in the [Unicode Character
@@ -477,10 +482,24 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_numeric(&self) -> bool {
-        self.code_points().all(char::is_numeric)
+        self.to_code_point().is_some_and(char::is_numeric)
     }
 
-    /// Returns `true` if all code points have the `White_Space` property.
+    /// Returns if the grapheme starts with a code point having the
+    /// `White_Space` property, and the remaining code points have the general
+    /// category `Cf`, have the `GCB=Extend` property, and are not included in
+    /// the following list:
+    /// - `'\u{202A}'`
+    /// - `'\u{202B}'`
+    /// - `'\u{202C}'`
+    /// - `'\u{202D}'`
+    /// - `'\u{202E}'`
+    /// - `'\u{2066}'`
+    /// - `'\u{2067}'`
+    /// - `'\u{2068}'`
+    /// - `'\u{2069}'`
+    ///
+    /// And also returns `true` if the grapheme is `g'\r\n'`.
     ///
     /// `White_Space` is specified in the [Unicode Character Database][ucd] [`PropList.txt`].
     ///
@@ -506,15 +525,36 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_whitespace(&self) -> bool {
-        self.code_points().all(char::is_whitespace)
+        let not_embeding = |c| {
+            ![
+                '\u{202A}', '\u{202B}', '\u{202C}', '\u{202D}', '\u{202E}', '\u{2066}', '\u{2067}',
+                '\u{2068}', '\u{2069}',
+            ]
+            .contains(&c)
+        };
+
+        if self.as_str() == "\r\n" {
+            return true;
+        }
+
+        let (first, rest) = self.split();
+        let first = first.is_whitespace();
+        let rest = rest.chars().all(|c| {
+            not_embeding(c)
+                && c.category() == UnicodeCategory::Format
+                && c.grapheme_cluster_break() == GraphemeClusterBreak::Extend
+        });
+
+        first && rest
     }
 
-    /// Returns `true` if the only code point in this `Grapheme` has the general category for
-    /// control codes.
+    /// Returns `true` if the `Grapheme` is `g'\r\n'` or its only code point has the
+    /// general category `Cc`.
     ///
-    /// Control codes (code points with the general category of `Cc`) are described in Chapter 4
-    /// (Character Properties) of the [Unicode Standard] and specified in the [Unicode Character
-    /// Database][ucd] [`UnicodeData.txt`].
+    /// Control codes (code points with the general category of `Cc`) are
+    /// described in Chapter 4 (Character Properties) of the [Unicode Standard]
+    /// and specified in the [Unicode Character Database][ucd]
+    /// [`UnicodeData.txt`].
     ///
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
