@@ -383,6 +383,7 @@ impl Grapheme {
     /// assert!(g!('京').is_alphabetic());
     /// assert!(g!("y̆").is_alphabetic());
     /// assert!(g!("yͧ").is_alphabetic());
+    /// assert!(g!("र्क").is_alphabetic());
     ///
     /// let c = g!('💝');
     /// // love is many things, but it is not alphabetic
@@ -393,9 +394,18 @@ impl Grapheme {
         match to_modified(self) {
             Some((grapheme, modification)) => {
                 (match modification {
+                    Modification::Conjunct(conjuct) => {
+                        let consonant = conjuct.consonant.is_alphabetic();
+                        let invalid_extend = conjuct.invalid_extend.is_empty();
+                        consonant && invalid_extend
+                    }
+
                     Modification::Extend(c) => c.is_diacritic() || c.is_alphabetic(),
+
                     Modification::SpacingMark(c) => c.is_diacritic() || c.is_alphabetic(),
+
                     Modification::Prepend(c) => c.is_diacritic() || c.is_alphabetic(),
+
                     _ => false,
                 }) && grapheme.is_alphabetic()
             }

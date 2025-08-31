@@ -27,13 +27,14 @@ Then:
 ```rust
 use grapheme::prelude::*;
 
-let yes = gs!("a 6 y̆ நி");
+let alpha = gs!("a 6 y̆ நி र्क");
 
-let mut iter = yes.iter().filter(|g| g.is_alphabetic());
+let mut iter = alpha.iter().filter(|g| g.is_alphabetic());
 
 assert_eq!(Some(g!("a")), iter.next());
-assert_eq!(Some(g!("y̆")), iter.next()); // g'y̆', not like str!
+assert_eq!(Some(g!("y̆")), iter.next());
 assert_eq!(Some(g!("நி")), iter.next());
+assert_eq!(Some(g!("र्क")), iter.next());
 
 assert_eq!(None, iter.next());
 ```
