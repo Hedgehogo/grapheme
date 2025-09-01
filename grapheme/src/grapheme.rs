@@ -2,7 +2,7 @@
 //!
 //! *[See also the `Grapheme` type.](Grapheme)*
 
-use crate::{GraphemeOwned, Modification, to_modified};
+use crate::GraphemeOwned;
 use std::{
     cmp::PartialEq,
     fmt,
@@ -368,8 +368,6 @@ impl Grapheme {
     /// result where:
     /// - All independent code points are alphabetic.
     /// - All non-independent code points are diacritics or alphabetic.
-    /// - The decomposition does not contain erroneous sequences such as
-    ///   `InCB=Extend` following `InCB=Linker`.
     ///
     /// `Alphabetic` is described in Chapter 4 (Character Properties) of the [Unicode Standard] and
     /// specified in the [Unicode Character Database][ucd] [`DerivedCoreProperties.txt`].
@@ -396,27 +394,10 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn is_alphabetic(&self) -> bool {
-        match to_modified(self) {
-            Some((grapheme, modification)) => {
-                (match modification {
-                    Modification::Conjunct(conjuct) => {
-                        let consonant = conjuct.consonant.is_alphabetic();
-                        let invalid_extend = conjuct.invalid_extend.is_empty();
-                        consonant && invalid_extend
-                    }
-
-                    Modification::Extend(c) => c.is_diacritic() || c.is_alphabetic(),
-
-                    Modification::SpacingMark(c) => c.is_diacritic() || c.is_alphabetic(),
-
-                    Modification::Prepend(c) => c.is_diacritic() || c.is_alphabetic(),
-
-                    _ => false,
-                }) && grapheme.is_alphabetic()
-            }
-
-            _ => self.code_points().all(char::is_alphabetic),
-        }
+        let (first, rest) = self.split();
+        let first = first.is_alphabetic();
+        let rest = rest.chars().all(|c| c.is_diacritic() || c.is_alphabetic());
+        first && rest
     }
 
     /// Returns `true` if this `Grapheme` satisfies either [`is_alphabetic()`] or [`is_numeric()`].
