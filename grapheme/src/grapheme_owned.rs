@@ -152,7 +152,7 @@ impl PartialEq for GraphemeOwned {
 
 impl Hash for GraphemeOwned {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
+        self.deref().hash(state);
     }
 }
 

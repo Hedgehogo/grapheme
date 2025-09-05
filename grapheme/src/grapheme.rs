@@ -1072,7 +1072,9 @@ impl PartialEq for Grapheme {
 
 impl Hash for Grapheme {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
+        for usv in self.0.nfd() {
+            state.write_u32(usv as u32);
+        }
     }
 }
 
