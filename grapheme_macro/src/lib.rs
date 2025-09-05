@@ -43,6 +43,8 @@ fn grapheme_macro(literal: syn::Lit) -> TokenStream {
 }
 
 /// Literal for `Grapheme`
+///
+/// It can accept a char literal or a string literal.
 #[proc_macro]
 pub fn g(input: TokenStream) -> TokenStream {
     grapheme_macro(syn::parse(input).unwrap())

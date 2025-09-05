@@ -26,7 +26,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// # Basic Usage
 ///
-/// Grapheme literals are string slices:
+/// Grapheme literals are grapheme slices:
 /// ```
 /// # use grapheme::prelude::*;
 /// let h = g!("h");
@@ -102,24 +102,25 @@ pub struct Grapheme(str);
 impl Grapheme {
     /// Converts a `&str` to a `&Grapheme`.
     ///
-    /// Note that all `Grapheme`s are valid [`str`]s, and can be cast to one with [`as_str`]:
+    /// Note that all `Grapheme`s are valid [`str`]s, and can be cast to one
+    /// with [`as_str`]:
     /// ```
     /// # use grapheme::prelude::*;
-    /// let g = g!('💯');
+    /// let g = g!("👁‍🗨");
     /// let s = g.as_str();
     ///
-    /// assert_eq!("💯", s);
+    /// assert_eq!("👁‍🗨", s);
     /// ```
     ///
     /// However, the reverse is not true: not all valid [`str`]s are valid
-    /// `Grapheme`s. `from_str_unchecked()` will return `None` if the input is not a valid value
-    /// for a `Grapheme`.
+    /// `Grapheme`s. `from_code_points()` will return `None` if the input is
+    /// not a valid value for a `Grapheme`.
     ///
     /// For an unsafe version of this function which ignores these checks, see
-    /// [`from_u32_unchecked`].
+    /// [`from_code_points_unchecked`].
     ///
     /// [`as_str`]: #method.as_str
-    /// [`from_u32_unchecked`]: #method.from_u32_unchecked
+    /// [`from_code_points_unchecked`]: #method.from_code_points_unchecked
     ///
     /// # Examples
     ///
@@ -127,9 +128,9 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let c = Grapheme::from_code_points("❤");
+    /// let c = Grapheme::from_code_points("❤️");
     ///
-    /// assert_eq!(Some(g!('❤')), c);
+    /// assert_eq!(Some(g!("❤️")), c);
     /// ```
     ///
     /// Returning `None` when the input is not a valid `Grapheme`:
@@ -154,15 +155,15 @@ impl Grapheme {
     /// Note that all `Grapheme`s are valid [`str`]s, and can be cast to one with [`as_str`]:
     /// ```
     /// # use grapheme::prelude::*;
-    /// let g = g!('💯');
+    /// let g = g!("👁‍🗨");
     /// let s = g.as_str();
     ///
-    /// assert_eq!("💯", s);
+    /// assert_eq!("👁‍🗨", s);
     /// ```
     ///
     /// However, the reverse is not true: not all valid [`str`]s are valid
-    /// `Grapheme`s. `from_str_unchecked()` will ignore this, and blindly cast to
-    /// `Grapheme`, possibly creating an invalid one.
+    /// `Grapheme`s. `from_code_points_unchecked()` will ignore this, and
+    /// blindly cast to `Grapheme`, possibly creating an invalid one.
     ///
     /// [`as_str`]: #method.as_str
     ///
@@ -170,9 +171,9 @@ impl Grapheme {
     ///
     /// This function is unsafe, as it may construct invalid `Grapheme` values.
     ///
-    /// For a safe version of this function, see the [`from_str`] function.
+    /// For a safe version of this function, see the [`from_code_points`] function.
     ///
-    /// [`from_str`]: #method.from_str
+    /// [`from_code_points`]: #method.from_code_points
     ///
     /// # Examples
     ///
@@ -180,9 +181,9 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let c = unsafe { Grapheme::from_code_points_unchecked("❤") };
+    /// let c = unsafe { Grapheme::from_code_points_unchecked("❤️") };
     ///
-    /// assert_eq!(g!('❤'), c);
+    /// assert_eq!(g!("❤️"), c);
     /// ```
     #[must_use]
     #[inline]
@@ -217,6 +218,9 @@ impl Grapheme {
     ///
     /// let len = g!('💣').len();
     /// assert_eq!(len, 4);
+    ///
+    /// let len = g!("🤦‍♂️").len();
+    /// assert_eq!(len, 13);
     /// ```
     ///
     /// The `&Graphemes` type guarantees that its contents are UTF-8, and so we can compare the length it
@@ -225,23 +229,23 @@ impl Grapheme {
     /// ```
     /// # use grapheme::prelude::*;
     /// // as graphemes
-    /// let eastern = g!('東');
-    /// let capital = g!('京');
+    /// let ka = g!('क');
+    /// let rm = g!("र्म");
     ///
     /// // both can be represented as three bytes
-    /// assert_eq!(3, eastern.len());
-    /// assert_eq!(3, capital.len());
+    /// assert_eq!(3, ka.len());
+    /// assert_eq!(9, rm.len());
     ///
-    /// // as a &str, these two are encoded in UTF-8
-    /// let tokyo = gs!("東京");
+    /// // as a &Graphemes, these two are encoded in UTF-8
+    /// let karma = gs!("कर्म");
     ///
-    /// let len = eastern.len() + capital.len();
+    /// let len = ka.len() + rm.len();
     ///
     /// // we can see that they take six bytes total...
-    /// assert_eq!(6, tokyo.len());
+    /// assert_eq!(12, karma.len());
     ///
-    /// // ... just like the &str
-    /// assert_eq!(len, tokyo.len());
+    /// // ... just like the &Graphemes
+    /// assert_eq!(len, karma.len());
     /// ```
     #[expect(clippy::len_without_is_empty)]
     #[must_use]
@@ -388,7 +392,7 @@ impl Grapheme {
     /// assert!(g!("yͧ").is_alphabetic());
     /// assert!(g!("र्क").is_alphabetic());
     ///
-    /// let c = g!('💝');
+    /// let c = g!("❤️");
     /// // love is many things, but it is not alphabetic
     /// assert!(!c.is_alphabetic());
     /// ```
@@ -419,6 +423,7 @@ impl Grapheme {
     /// assert!(g!('K').is_alphanumeric());
     /// assert!(g!('و').is_alphanumeric());
     /// assert!(g!('藏').is_alphanumeric());
+    /// assert!(g!("र्क").is_alphanumeric());
     /// ```
     #[must_use]
     #[inline]
@@ -426,16 +431,20 @@ impl Grapheme {
         self.is_numeric() || self.is_alphabetic()
     }
 
-    /// Returns `true` if the only code point has one of the general categories for numbers.
+    /// Returns `true` if the only code point has one of the general categories
+    /// for numbers.
     ///
-    /// The general categories for numbers (`Nd` for decimal digits, `Nl` for letter-like numeric
-    /// characters, and `No` for other numeric characters) are specified in the [Unicode Character
-    /// Database][ucd] [`UnicodeData.txt`].
+    /// The general categories for numbers (`Nd` for decimal digits, `Nl` for
+    /// letter-like numeric characters, and `No` for other numeric characters)
+    /// are specified in the [Unicode Character Database][ucd]
+    /// [`UnicodeData.txt`].
     ///
-    /// This method doesn't cover everything that could be considered a number, e.g. ideographic numbers like '三'.
-    /// If you want everything including characters with overlapping purposes then you might want to use
-    /// a unicode or language-processing library that exposes the appropriate character properties instead
-    /// of looking at the unicode categories.
+    /// This method doesn't cover everything that could be considered a number,
+    /// e.g. ideographic numbers like '三'.
+    /// If you want everything including characters with overlapping purposes
+    /// then you might want to use a unicode or language-processing library
+    /// that exposes the appropriate character properties instead of looking at
+    /// the unicode categories.
     ///
     /// If you want to parse ASCII decimal digits (0-9) or ASCII base-N, use
     /// `is_ascii_digit` or `is_digit` instead.
@@ -459,6 +468,7 @@ impl Grapheme {
     /// assert!(!g!('و').is_numeric());
     /// assert!(!g!('藏').is_numeric());
     /// assert!(!g!('三').is_numeric());
+    /// assert!(!g!("र्क").is_numeric());
     /// ```
     #[must_use]
     #[inline]
@@ -501,7 +511,13 @@ impl Grapheme {
     /// // a non-breaking space
     /// assert!(g!('\u{A0}').is_whitespace());
     ///
+    /// // with zero width non-joiner
+    /// assert!(g!(" \u{200C}").is_whitespace());
+    ///
     /// assert!(!g!('越').is_whitespace());
+    /// assert!(!g!("र्क").is_whitespace());
+    /// assert!(!g!("\u{200C}").is_whitespace());
+    /// assert!(!g!("越\u{200C}").is_whitespace());
     /// ```
     #[must_use]
     #[inline]
@@ -529,8 +545,8 @@ impl Grapheme {
         first && rest
     }
 
-    /// Returns `true` if the `Grapheme` is `g'\r\n'` or its only code point has the
-    /// general category `Cc`.
+    /// Returns `true` if the `Grapheme` is `g'\r\n'` or its only code point
+    /// has the general category `Cc`.
     ///
     /// Control codes (code points with the general category of `Cc`) are
     /// described in Chapter 4 (Character Properties) of the [Unicode Standard]
@@ -549,7 +565,10 @@ impl Grapheme {
     /// # use grapheme::prelude::*;
     /// // U+009C, STRING TERMINATOR
     /// assert!(g!('').is_control());
+    /// assert!(g!("\r\n").is_control());
+    ///
     /// assert!(!g!('q').is_control());
+    /// assert!(!g!("र्क").is_control());
     /// ```
     #[must_use]
     #[inline]
@@ -563,11 +582,9 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let ascii = g!('a');
-    /// let non_ascii = g!('❤');
-    ///
-    /// assert!(ascii.is_ascii());
-    /// assert!(!non_ascii.is_ascii());
+    /// assert!(g!('a').is_ascii());
+    /// assert!(!g!('❤').is_ascii());
+    /// assert!(!g!("❤️").is_ascii());
     /// ```
     #[must_use]
     #[inline]
@@ -593,6 +610,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(uppercase_a.is_ascii_alphabetic());
     /// assert!(uppercase_g.is_ascii_alphabetic());
@@ -603,6 +621,7 @@ impl Grapheme {
     /// assert!(!space.is_ascii_alphabetic());
     /// assert!(!lf.is_ascii_alphabetic());
     /// assert!(!esc.is_ascii_alphabetic());
+    /// assert!(!rk.is_ascii_alphabetic());
     /// ```
     #[must_use]
     #[inline]
@@ -630,6 +649,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(uppercase_a.is_ascii_alphanumeric());
     /// assert!(uppercase_g.is_ascii_alphanumeric());
@@ -640,6 +660,7 @@ impl Grapheme {
     /// assert!(!space.is_ascii_alphanumeric());
     /// assert!(!lf.is_ascii_alphanumeric());
     /// assert!(!esc.is_ascii_alphanumeric());
+    /// assert!(!rk.is_ascii_alphanumeric());
     /// ```
     #[must_use]
     #[inline]
@@ -664,6 +685,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(!uppercase_a.is_ascii_digit());
     /// assert!(!uppercase_g.is_ascii_digit());
@@ -674,6 +696,7 @@ impl Grapheme {
     /// assert!(!space.is_ascii_digit());
     /// assert!(!lf.is_ascii_digit());
     /// assert!(!esc.is_ascii_digit());
+    /// assert!(!rk.is_ascii_digit());
     /// ```
     #[must_use]
     #[inline]
@@ -701,6 +724,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(!uppercase_a.is_ascii_punctuation());
     /// assert!(!uppercase_g.is_ascii_punctuation());
@@ -711,6 +735,7 @@ impl Grapheme {
     /// assert!(!space.is_ascii_punctuation());
     /// assert!(!lf.is_ascii_punctuation());
     /// assert!(!esc.is_ascii_punctuation());
+    /// assert!(!rk.is_ascii_punctuation());
     /// ```
     #[must_use]
     #[inline]
@@ -735,6 +760,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(uppercase_a.is_ascii_graphic());
     /// assert!(uppercase_g.is_ascii_graphic());
@@ -745,6 +771,7 @@ impl Grapheme {
     /// assert!(!space.is_ascii_graphic());
     /// assert!(!lf.is_ascii_graphic());
     /// assert!(!esc.is_ascii_graphic());
+    /// assert!(!rk.is_ascii_graphic());
     /// ```
     #[must_use]
     #[inline]
@@ -785,6 +812,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(!uppercase_a.is_ascii_whitespace());
     /// assert!(!uppercase_g.is_ascii_whitespace());
@@ -795,6 +823,7 @@ impl Grapheme {
     /// assert!(space.is_ascii_whitespace());
     /// assert!(lf.is_ascii_whitespace());
     /// assert!(!esc.is_ascii_whitespace());
+    /// assert!(!rk.is_ascii_whitespace());
     /// ```
     #[must_use]
     #[inline]
@@ -821,6 +850,7 @@ impl Grapheme {
     /// let space = g!(' ');
     /// let lf = g!('\n');
     /// let esc = g!('\x1b');
+    /// let rk = g!("र्क");
     ///
     /// assert!(!uppercase_a.is_ascii_control());
     /// assert!(!uppercase_g.is_ascii_control());
@@ -831,6 +861,7 @@ impl Grapheme {
     /// assert!(!space.is_ascii_control());
     /// assert!(lf.is_ascii_control());
     /// assert!(esc.is_ascii_control());
+    /// assert!(!rk.is_ascii_control());
     /// ```
     #[must_use]
     #[inline]
@@ -845,7 +876,7 @@ impl Grapheme {
     /// ```
     /// # use grapheme::prelude::*;
     /// let code_point = g!('東');
-    /// let non_code_point = g!("\r\n");
+    /// let non_code_point = g!("र्क");
     ///
     /// assert!(code_point.is_code_point());
     /// assert!(!non_code_point.is_code_point());
@@ -863,6 +894,17 @@ impl Grapheme {
     /// This is preferred to [`Self::is_code_point`] when you're passing the value
     /// along to something else that can take [`char`] rather than
     /// needing to check again for itself whether the value is one code point.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let code_point = g!('東');
+    /// let non_code_point = g!("र्क");
+    ///
+    /// assert_eq!(Some('東'), code_point.to_code_point());
+    /// assert_eq!(None, non_code_point.to_code_point());
+    /// ```
     #[must_use]
     #[inline]
     #[doc(alias = "to_char", alias = "to_usv")]

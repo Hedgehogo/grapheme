@@ -13,7 +13,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// # Basic Usage
 ///
-/// Graphemes literals are string slices:
+/// Graphemes literals are graphemes slices:
 /// ```
 /// # use grapheme::prelude::*;
 /// let hello_world  = gs!("Hello, World!");
