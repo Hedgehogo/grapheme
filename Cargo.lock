@@ -15,7 +15,7 @@ dependencies = [
 
 [[package]]
 name = "grapheme"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "grapheme_macro 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "icu_properties",
