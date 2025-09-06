@@ -83,9 +83,9 @@ fn to_conjunct(grapheme: &Grapheme) -> Option<(&Grapheme, Conjunct)> {
         let _ = iter.next().unwrap();
         let invalid_extend = iter.as_str();
 
-        let rest = Grapheme::from_code_points(rest).unwrap();
+        let rest = Grapheme::from_usvs(rest).unwrap();
         let conjunct = Conjunct {
-            consonant: Grapheme::from_code_points(consonant).unwrap(),
+            consonant: Grapheme::from_usvs(consonant).unwrap(),
             linker,
             invalid_extend,
         };
@@ -103,7 +103,7 @@ fn to_extended_pictographic(grapheme: &Grapheme) -> Option<(&Grapheme, char)> {
 
     if zwj == '\u{200D}' {
         let (rest, _) = grapheme.as_str().split_at(zwj_i);
-        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        let grapheme = Grapheme::from_usvs(rest).unwrap();
         return Some((grapheme, emoji));
     }
 
@@ -111,7 +111,7 @@ fn to_extended_pictographic(grapheme: &Grapheme) -> Option<(&Grapheme, char)> {
 }
 
 pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modification)> {
-    if grapheme.is_code_point() {
+    if grapheme.is_usv() {
         return None;
     }
 
@@ -119,17 +119,17 @@ pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modificatio
     let last_gcb = gcb(last);
 
     if last_gcb == GraphemeClusterBreak::Extend {
-        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        let grapheme = Grapheme::from_usvs(rest).unwrap();
         return Some((grapheme, Modification::Extend(last)));
     }
 
     if last_gcb == GraphemeClusterBreak::ZWJ {
-        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        let grapheme = Grapheme::from_usvs(rest).unwrap();
         return Some((grapheme, Modification::Zwj));
     }
 
     if last_gcb == GraphemeClusterBreak::SpacingMark {
-        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        let grapheme = Grapheme::from_usvs(rest).unwrap();
         return Some((grapheme, Modification::SpacingMark(last)));
     }
 
@@ -137,7 +137,7 @@ pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modificatio
     let first_gcb = gcb(first);
 
     if first_gcb == GraphemeClusterBreak::Prepend {
-        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        let grapheme = Grapheme::from_usvs(rest).unwrap();
         return Some((grapheme, Modification::Prepend(first)));
     }
 
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_to_modified() {
-        let g = |s| Grapheme::from_code_points(s).unwrap();
+        let g = |s| Grapheme::from_usvs(s).unwrap();
         assert_eq!(
             to_modified(g("y̆")),
             Some((g("y"), Modification::Extend('\u{0306}')))

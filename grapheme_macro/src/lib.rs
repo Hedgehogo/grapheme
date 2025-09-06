@@ -20,7 +20,7 @@ fn grapheme_macro(literal: syn::Lit) -> TokenStream {
 
                 (Some(_), _) => {
                     let generated = quote! {
-                        unsafe { ::grapheme::Grapheme::from_code_points_unchecked(#lit_str) }
+                        unsafe { ::grapheme::Grapheme::from_usvs_unchecked(#lit_str) }
                     };
                     generated.into()
                 }
@@ -33,7 +33,7 @@ fn grapheme_macro(literal: syn::Lit) -> TokenStream {
             let string: String = std::iter::once(lit_char.value()).collect();
             let lit_str = LitStr::new(&string, lit_char.span());
             let generated = quote! {
-                unsafe { ::grapheme::Grapheme::from_code_points_unchecked(#lit_str) }
+                unsafe { ::grapheme::Grapheme::from_usvs_unchecked(#lit_str) }
             };
             generated.into()
         }
@@ -53,7 +53,7 @@ pub fn g(input: TokenStream) -> TokenStream {
 #[inline]
 fn graphemes_macro(literal: syn::LitStr) -> TokenStream {
     let generated = quote! {
-        unsafe { ::grapheme::Graphemes::from_code_points(#literal) }
+        ::grapheme::Graphemes::from_usvs(#literal)
     };
     generated.into()
 }

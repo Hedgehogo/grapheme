@@ -270,7 +270,7 @@ impl<'src> Iterator for GraphemesIter<'src> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter
             .next()
-            .map(|grapheme| unsafe { Grapheme::from_code_points_unchecked(grapheme) })
+            .map(|grapheme| unsafe { Grapheme::from_usvs_unchecked(grapheme) })
     }
 }
 
@@ -279,6 +279,6 @@ impl DoubleEndedIterator for GraphemesIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.iter
             .next_back()
-            .map(|grapheme| unsafe { Grapheme::from_code_points_unchecked(grapheme) })
+            .map(|grapheme| unsafe { Grapheme::from_usvs_unchecked(grapheme) })
     }
 }

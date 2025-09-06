@@ -103,6 +103,13 @@ use unicode_segmentation::UnicodeSegmentation;
 pub struct Grapheme(str);
 
 impl Grapheme {
+    /// Alias for [`from_usvs`](#method.from_usvs).
+    #[inline]
+    #[deprecated(since = "1.2.0", note = "use `from_usvs` instead")]
+    pub fn from_code_points(value: &str) -> Option<&Self> {
+        Self::from_usvs(value)
+    }
+
     /// Converts a `&str` to a `&Grapheme`.
     ///
     /// Note that all `Grapheme`s are valid [`str`]s, and can be cast to one
@@ -146,11 +153,19 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    #[doc(alias = "from_chars", alias = "from_usvs", alias = "from_str")]
-    pub fn from_code_points(value: &str) -> Option<&Self> {
+    #[doc(alias = "from_chars", alias = "from_code_points", alias = "from_str")]
+    pub fn from_usvs(value: &str) -> Option<&Self> {
         let mut iter = value.graphemes(true);
         matches!((iter.next(), iter.next()), (Some(_), None))
-            .then(|| unsafe { Self::from_code_points_unchecked(value) })
+            .then(|| unsafe { Self::from_usvs_unchecked(value) })
+    }
+
+    /// Alias for [`from_usvs_unchecked`](#method.from_usvs_unchecked).
+    #[inline]
+    #[expect(clippy::missing_safety_doc)]
+    #[deprecated(since = "1.2.0", note = "use `from_usvs_unchecked` instead")]
+    pub const unsafe fn from_code_points_unchecked(value: &str) -> &Self {
+        unsafe { Self::from_usvs_unchecked(value) }
     }
 
     /// Converts a `&str` to a `&Grapheme`, ignoring validity.
@@ -193,9 +208,9 @@ impl Grapheme {
     #[doc(
         alias = "from_chars_unchecked",
         alias = "from_str_unchecked",
-        alias = "from_usvs_unchecked"
+        alias = "from_code_points_unchecked"
     )]
-    pub const unsafe fn from_code_points_unchecked(value: &str) -> &Self {
+    pub const unsafe fn from_usvs_unchecked(value: &str) -> &Self {
         // SAFETY: This is ok because Grapheme is #[repr(transparent)]
         unsafe { &*(value as *const str as *const Self) }
     }
@@ -326,7 +341,7 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn is_digit(&self, radix: u32) -> bool {
-        self.to_code_point().is_some_and(|c| c.is_digit(radix))
+        self.to_usv().is_some_and(|c| c.is_digit(radix))
     }
 
     /// Converts a `Grapheme` to a digit in the given radix.
@@ -384,7 +399,7 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn to_digit(&self, radix: u32) -> Option<u32> {
-        self.to_code_point().and_then(|c| c.to_digit(radix))
+        self.to_usv().and_then(|c| c.to_digit(radix))
     }
 
     /// Returns `true` if decomposing a grapheme into components yields a
@@ -499,7 +514,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_numeric(&self) -> bool {
-        self.to_code_point().is_some_and(char::is_numeric)
+        self.to_usv().is_some_and(char::is_numeric)
     }
 
     /// Returns if the grapheme starts with a [USV] having the
@@ -606,7 +621,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_control(&self) -> bool {
-        self.as_str() == "\r\n" || self.to_code_point().is_some_and(char::is_control)
+        self.as_str() == "\r\n" || self.to_usv().is_some_and(char::is_control)
     }
 
     /// Checks if the value is within the ASCII range.
@@ -622,7 +637,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii(&self) -> bool {
-        self.to_code_point().is_some_and(|c| c.is_ascii())
+        self.to_usv().is_some_and(|c| c.is_ascii())
     }
 
     /// Checks if the value is an ASCII alphabetic character:
@@ -659,8 +674,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_alphabetic(&self) -> bool {
-        self.to_code_point()
-            .is_some_and(|c| c.is_ascii_alphabetic())
+        self.to_usv().is_some_and(|c| c.is_ascii_alphabetic())
     }
 
     /// Checks if the value is an ASCII alphanumeric character:
@@ -698,8 +712,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_alphanumeric(&self) -> bool {
-        self.to_code_point()
-            .is_some_and(|c| c.is_ascii_alphanumeric())
+        self.to_usv().is_some_and(|c| c.is_ascii_alphanumeric())
     }
 
     /// Checks if the value is an ASCII decimal digit:
@@ -734,7 +747,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_digit(&self) -> bool {
-        self.to_code_point().is_some_and(|c| c.is_ascii_digit())
+        self.to_usv().is_some_and(|c| c.is_ascii_digit())
     }
 
     /// Checks if the value is an ASCII punctuation character:
@@ -773,8 +786,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_punctuation(&self) -> bool {
-        self.to_code_point()
-            .is_some_and(|c| c.is_ascii_punctuation())
+        self.to_usv().is_some_and(|c| c.is_ascii_punctuation())
     }
 
     /// Checks if the value is an ASCII graphic character:
@@ -809,7 +821,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_graphic(&self) -> bool {
-        self.code_points().any(|c| c.is_ascii_graphic())
+        self.as_str().chars().any(|c| c.is_ascii_graphic())
     }
 
     /// Checks if the value is an ASCII whitespace character:
@@ -861,8 +873,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_whitespace(&self) -> bool {
-        self.to_code_point()
-            .is_some_and(|c| c.is_ascii_whitespace())
+        self.to_usv().is_some_and(|c| c.is_ascii_whitespace())
     }
 
     /// Checks if the value is an ASCII control character:
@@ -899,7 +910,14 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_ascii_control(&self) -> bool {
-        self.to_code_point().is_some_and(|c| c.is_ascii_control())
+        self.to_usv().is_some_and(|c| c.is_ascii_control())
+    }
+
+    /// Alias for [`is_usv`](#method.is_usv).
+    #[inline]
+    #[deprecated(since = "1.2.0", note = "use `is_usv` instead")]
+    pub fn is_code_point(&self) -> bool {
+        self.is_usv()
     }
 
     /// Checks if the `Grapheme` contains exactly one [USV].
@@ -917,10 +935,17 @@ impl Grapheme {
     /// assert!(!non_code_point.is_code_point());
     /// ```
     #[inline]
-    #[doc(alias = "is_char", alias = "is_usv")]
-    pub fn is_code_point(&self) -> bool {
+    #[doc(alias = "is_char", alias = "is_code_point")]
+    pub fn is_usv(&self) -> bool {
         let mut iter = self.0.chars();
         matches!((iter.next(), iter.next()), (Some(_), None))
+    }
+
+    /// Alias for [`to_usv`](#method.to_usv).
+    #[inline]
+    #[deprecated(since = "1.2.0", note = "use `to_usv` instead")]
+    pub fn to_code_point(&self) -> Option<char> {
+        self.to_usv()
     }
 
     /// Returns `Some` if the `Grapheme` contains exactly one [USV],
@@ -944,8 +969,8 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    #[doc(alias = "to_char", alias = "to_usv")]
-    pub fn to_code_point(&self) -> Option<char> {
+    #[doc(alias = "to_char", alias = "to_code_point")]
+    pub fn to_usv(&self) -> Option<char> {
         let mut iter = self.0.chars();
         if let (Some(c), None) = (iter.next(), iter.next()) {
             Some(c)
@@ -979,7 +1004,8 @@ impl Grapheme {
     /// assert_eq!(None, code_points.next());
     /// ```
     #[inline]
-    #[doc(alias = "chars", alias = "usvs")]
+    #[doc(alias = "chars")]
+    #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
     pub fn code_points(&self) -> Chars<'_> {
         self.0.chars()
     }
@@ -1002,6 +1028,7 @@ impl Grapheme {
     /// assert_eq!(None, bytes.next());
     /// ```
     #[inline]
+    #[deprecated(since = "1.2.0", note = "use `.as_bytes().iter()` instead")]
     pub fn bytes(&self) -> Bytes<'_> {
         self.0.bytes()
     }
