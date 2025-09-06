@@ -62,11 +62,18 @@ use unicode_segmentation::UnicodeSegmentation;
 pub struct Graphemes(str);
 
 impl Graphemes {
+    /// Alias for [`from_usvs`](#method.from_usvs).
+    #[inline]
+    #[deprecated(since = "1.2.0", note = "use `from_usvs` instead")]
+    pub fn from_code_points(inner: &str) -> &Self {
+        Self::from_usvs(inner)
+    }
+
+    /// Converts a `&str` into a `&Graphemes`.
     #[must_use]
     #[inline]
-    #[doc(alias = "from_chars", alias = "from_usvs", alias = "from_str")]
-    /// Converts a `&str` into a `&Graphemes`.
-    pub fn from_code_points(inner: &str) -> &Self {
+    #[doc(alias = "from_chars", alias = "from_code_points", alias = "from_str")]
+    pub fn from_usvs(inner: &str) -> &Self {
         // SAFETY: This is ok because Graphemes is #[repr(transparent)]
         unsafe { &*(inner as *const str as *const Self) }
     }
@@ -127,6 +134,7 @@ impl Graphemes {
     /// ```
     #[inline]
     #[doc(alias = "chars", alias = "usvs")]
+    #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
     pub fn code_points(&self) -> Chars<'_> {
         self.0.chars()
     }
@@ -180,7 +188,7 @@ impl AsRef<Graphemes> for Graphemes {
 
 impl<'src> From<&'src str> for &'src Graphemes {
     fn from(value: &'src str) -> Self {
-        Graphemes::from_code_points(value)
+        Graphemes::from_usvs(value)
     }
 }
 
