@@ -94,7 +94,7 @@ impl Graphemes {
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter(&self) -> GraphemesIter<'_> {
+    pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 
@@ -231,35 +231,39 @@ impl Clone for Box<Graphemes> {
 impl<'src> IntoIterator for &'src Graphemes {
     type Item = &'src Grapheme;
 
-    type IntoIter = GraphemesIter<'src>;
+    type IntoIter = Iter<'src>;
 
     fn into_iter(self) -> Self::IntoIter {
-        GraphemesIter::new(self)
+        Iter::new(self)
     }
 }
 
+/// Alias for [`Iter`].
+#[deprecated(since = "1.2.0", note = "use `Iter` instead")]
+pub type GraphemesIter<'g> = Iter<'g>;
+
 /// Grapheme iterator type.
 #[derive(Debug, Clone)]
-pub struct GraphemesIter<'src> {
-    iter: unicode_segmentation::Graphemes<'src>,
+pub struct Iter<'g> {
+    iter: unicode_segmentation::Graphemes<'g>,
 }
 
-impl<'src> GraphemesIter<'src> {
+impl<'g> Iter<'g> {
     /// Create a new grapheme iterator.
-    pub fn new(graphemes: &'src Graphemes) -> Self {
+    pub fn new(graphemes: &'g Graphemes) -> Self {
         Self {
             iter: graphemes.as_str().graphemes(true),
         }
     }
 
     /// Returns a string slice of this `&Graphemes`’s contents.
-    pub fn as_str(self) -> &'src str {
+    pub fn as_str(self) -> &'g str {
         self.iter.as_str()
     }
 }
 
-impl<'src> Iterator for GraphemesIter<'src> {
-    type Item = &'src Grapheme;
+impl<'g> Iterator for Iter<'g> {
+    type Item = &'g Grapheme;
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -274,7 +278,7 @@ impl<'src> Iterator for GraphemesIter<'src> {
     }
 }
 
-impl DoubleEndedIterator for GraphemesIter<'_> {
+impl DoubleEndedIterator for Iter<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.iter
