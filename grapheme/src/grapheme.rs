@@ -60,13 +60,13 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// ```should_panic
 /// # use grapheme::prelude::*;
-/// Grapheme::from_code_points("ab").unwrap();
+/// Grapheme::from_usvs("ab").unwrap();
 /// ```
 ///
 /// ```no_run
 /// # use grapheme::prelude::*;
 /// // Undefined behavior
-/// let _ = unsafe { Grapheme::from_code_points_unchecked("ab") };
+/// let _ = unsafe { Grapheme::from_usvs_unchecked("ab") };
 /// ```
 ///
 /// # Representation
@@ -93,7 +93,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///     let slice = slice::from_raw_parts(ptr, len);
 ///
 ///     // ... and then convert that slice into a string slice
-///     str::from_utf8(slice).ok().and_then(Grapheme::from_code_points)
+///     str::from_utf8(slice).ok().and_then(Grapheme::from_usvs)
 /// };
 ///
 /// assert_eq!(g, Some(strange));
@@ -123,14 +123,14 @@ impl Grapheme {
     /// ```
     ///
     /// However, the reverse is not true: not all valid [`str`]s are valid
-    /// `Grapheme`s. `from_code_points()` will return `None` if the input is
+    /// `Grapheme`s. `from_usvs()` will return `None` if the input is
     /// not a valid value for a `Grapheme`.
     ///
     /// For an unsafe version of this function which ignores these checks, see
-    /// [`from_code_points_unchecked`].
+    /// [`from_usvs_unchecked`].
     ///
     /// [`as_str`]: #method.as_str
-    /// [`from_code_points_unchecked`]: #method.from_code_points_unchecked
+    /// [`from_usvs_unchecked`]: #method.from_usvs_unchecked
     ///
     /// # Examples
     ///
@@ -138,7 +138,7 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let c = Grapheme::from_code_points("❤️");
+    /// let c = Grapheme::from_usvs("❤️");
     ///
     /// assert_eq!(Some(g!("❤️")), c);
     /// ```
@@ -147,7 +147,7 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let c = Grapheme::from_code_points("ab");
+    /// let c = Grapheme::from_usvs("ab");
     ///
     /// assert_eq!(None, c);
     /// ```
@@ -180,7 +180,7 @@ impl Grapheme {
     /// ```
     ///
     /// However, the reverse is not true: not all valid [`str`]s are valid
-    /// `Grapheme`s. `from_code_points_unchecked()` will ignore this, and
+    /// `Grapheme`s. `from_usvs_unchecked()` will ignore this, and
     /// blindly cast to `Grapheme`, possibly creating an invalid one.
     ///
     /// [`as_str`]: #method.as_str
@@ -189,9 +189,9 @@ impl Grapheme {
     ///
     /// This function is unsafe, as it may construct invalid `Grapheme` values.
     ///
-    /// For a safe version of this function, see the [`from_code_points`] function.
+    /// For a safe version of this function, see the [`from_usvs`] function.
     ///
-    /// [`from_code_points`]: #method.from_code_points
+    /// [`from_usvs`]: #method.from_usvs
     ///
     /// # Examples
     ///
@@ -199,7 +199,7 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let c = unsafe { Grapheme::from_code_points_unchecked("❤️") };
+    /// let c = unsafe { Grapheme::from_usvs_unchecked("❤️") };
     ///
     /// assert_eq!(g!("❤️"), c);
     /// ```
@@ -280,7 +280,7 @@ impl Grapheme {
     /// assert_eq!(len, karma.len());
     /// ```
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     #[expect(clippy::len_without_is_empty)]
     #[must_use]
     #[inline]
@@ -410,7 +410,7 @@ impl Grapheme {
     /// `Alphabetic` is described in Chapter 4 (Character Properties) of the [Unicode Standard] and
     /// specified in the [Unicode Character Database][ucd] [`DerivedCoreProperties.txt`].
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`DerivedCoreProperties.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt
@@ -489,7 +489,7 @@ impl Grapheme {
     /// If you want to parse ASCII decimal digits (0-9) or ASCII base-N, use
     /// `is_ascii_digit` or `is_digit` instead.
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`UnicodeData.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
@@ -535,7 +535,7 @@ impl Grapheme {
     ///
     /// `White_Space` is specified in the [Unicode Character Database][ucd] [`PropList.txt`].
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`PropList.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/PropList.txt
     /// [CVE-2021-42574]: https://nvd.nist.gov/vuln/detail/CVE-2021-42574
@@ -600,7 +600,7 @@ impl Grapheme {
     /// and specified in the [Unicode Character Database][ucd]
     /// [`UnicodeData.txt`].
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`UnicodeData.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
@@ -922,17 +922,17 @@ impl Grapheme {
 
     /// Checks if the `Grapheme` contains exactly one [USV].
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     ///
     /// # Examples
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let code_point = g!('東');
-    /// let non_code_point = g!("र्क");
+    /// let usv = g!('東');
+    /// let non_usv = g!("र्क");
     ///
-    /// assert!(code_point.is_code_point());
-    /// assert!(!non_code_point.is_code_point());
+    /// assert!(usv.is_usv());
+    /// assert!(!non_usv.is_usv());
     /// ```
     #[inline]
     #[doc(alias = "is_char", alias = "is_code_point")]
@@ -951,21 +951,21 @@ impl Grapheme {
     /// Returns `Some` if the `Grapheme` contains exactly one [USV],
     /// or `None` if it's not.
     ///
-    /// This is preferred to [`Self::is_code_point`] when you're passing the value
+    /// This is preferred to [`Self::is_usv`] when you're passing the value
     /// along to something else that can take [`char`] rather than
     /// needing to check again for itself whether the value is one [USV].
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     ///
     /// # Examples
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let code_point = g!('東');
-    /// let non_code_point = g!("र्क");
+    /// let usv = g!('東');
+    /// let non_usv = g!("र्क");
     ///
-    /// assert_eq!(Some('東'), code_point.to_code_point());
-    /// assert_eq!(None, non_code_point.to_code_point());
+    /// assert_eq!(Some('東'), usv.to_usv());
+    /// assert_eq!(None, non_usv.to_usv());
     /// ```
     #[must_use]
     #[inline]
@@ -996,12 +996,13 @@ impl Grapheme {
     /// # use grapheme::prelude::*;
     /// let y = g!("y̆");
     ///
-    /// let mut code_points = y.code_points();
+    /// # #[expect(deprecated)]
+    /// let mut usvs = y.code_points();
     ///
-    /// assert_eq!(Some('y'), code_points.next()); // not 'y̆'
-    /// assert_eq!(Some('\u{0306}'), code_points.next());
+    /// assert_eq!(Some('y'), usvs.next()); // not 'y̆'
+    /// assert_eq!(Some('\u{0306}'), usvs.next());
     ///
-    /// assert_eq!(None, code_points.next());
+    /// assert_eq!(None, usvs.next());
     /// ```
     #[inline]
     #[doc(alias = "chars")]
@@ -1019,6 +1020,7 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
+    /// # #[expect(deprecated)]
     /// let mut bytes = g!("y̆").bytes();
     ///
     /// assert_eq!(Some(b'y'), bytes.next());
@@ -1114,15 +1116,15 @@ impl Grapheme {
     /// assert!(canonical.split() != non_canonical.split());
     /// ```
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     ///
     /// # Examples
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let (code_point, rest) = g!("y̆").split();
+    /// let (usv, rest) = g!("y̆").split();
     ///
-    /// assert_eq!('y', code_point);
+    /// assert_eq!('y', usv);
     /// assert_eq!("\u{0306}", rest);
     /// ```
     #[inline]
@@ -1150,16 +1152,16 @@ impl Grapheme {
     /// assert!(canonical.split_rev() != non_canonical.split_rev());
     /// ```
     ///
-    /// [USV]: #method.code_points
+    /// [USV]: #method.usvs
     ///
     /// # Examples
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let (rest, code_point) = g!("y̆").split_rev();
+    /// let (rest, usv) = g!("y̆").split_rev();
     ///
     /// assert_eq!("y", rest);
-    /// assert_eq!('\u{0306}', code_point);
+    /// assert_eq!('\u{0306}', usv);
     /// ```
     #[inline]
     pub fn split_rev(&self) -> (&str, char) {

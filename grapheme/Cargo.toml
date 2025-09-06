@@ -12,7 +12,7 @@ edition = "2024"
 
 [dependencies]
 smallvec = "1"
-grapheme_macro = "1"
+grapheme_macro = "2"
 icu_properties = "2"
 unicode-segmentation = { workspace = true }
 unicode-normalization = { workspace = true }

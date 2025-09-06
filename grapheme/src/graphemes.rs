@@ -53,7 +53,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///     let slice = slice::from_raw_parts(ptr, len);
 ///
 ///     // ... and then convert that slice into a grapheme slice
-///     str::from_utf8(slice).ok().map(Graphemes::from_code_points)
+///     str::from_utf8(slice).ok().map(Graphemes::from_usvs)
 /// };
 ///
 /// assert_eq!(g, Some(story));
@@ -114,7 +114,26 @@ impl Graphemes {
     /// It's important to remember that [`char`] represents a Unicode Scalar
     /// Value, and might not match your idea of what a 'character' is.
     ///
-    /// [`char`]: prim@char
+    /// [`char`]: prim@char    
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let yes = gs!("y̆es");
+    ///
+    /// # #[expect(deprecated)]
+    /// let mut usvs = yes.code_points();
+    ///
+    /// assert_eq!(Some('y'), usvs.next()); // not 'y̆'
+    /// assert_eq!(Some('\u{0306}'), usvs.next());
+    /// assert_eq!(Some('e'), usvs.next());
+    /// assert_eq!(Some('s'), usvs.next());
+    ///
+    /// assert_eq!(None, usvs.next());
+    /// ```
     #[inline]
     #[doc(alias = "chars", alias = "usvs")]
     #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
