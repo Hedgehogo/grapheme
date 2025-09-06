@@ -241,7 +241,7 @@ impl Grapheme {
     /// ```
     ///
     /// The `&Graphemes` type guarantees that its contents are UTF-8, and so we can compare the length it
-    /// would take if each code point was represented as a `&Grapheme` vs in the `&Graphemes` itself:
+    /// would take if each [USV] was represented as a `&Grapheme` vs in the `&Graphemes` itself:
     ///
     /// ```
     /// # use grapheme::prelude::*;
@@ -264,6 +264,8 @@ impl Grapheme {
     /// // ... just like the &Graphemes
     /// assert_eq!(len, karma.len());
     /// ```
+    ///
+    /// [USV]: #method.code_points
     #[expect(clippy::len_without_is_empty)]
     #[must_use]
     #[inline]
@@ -387,12 +389,13 @@ impl Grapheme {
 
     /// Returns `true` if decomposing a grapheme into components yields a
     /// result where:
-    /// - All independent code points are alphabetic.
-    /// - All non-independent code points are diacritics or alphabetic.
+    /// - All independent [USV]s are alphabetic.
+    /// - All non-independent [USV]s are diacritics or alphabetic.
     ///
     /// `Alphabetic` is described in Chapter 4 (Character Properties) of the [Unicode Standard] and
     /// specified in the [Unicode Character Database][ucd] [`DerivedCoreProperties.txt`].
     ///
+    /// [USV]: #method.code_points
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`DerivedCoreProperties.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt
@@ -453,7 +456,7 @@ impl Grapheme {
         self.is_numeric() || self.is_alphabetic()
     }
 
-    /// Returns `true` if the only code point has one of the general categories
+    /// Returns `true` if the only [USV] has one of the general categories
     /// for numbers.
     ///
     /// The general categories for numbers (`Nd` for decimal digits, `Nl` for
@@ -471,6 +474,7 @@ impl Grapheme {
     /// If you want to parse ASCII decimal digits (0-9) or ASCII base-N, use
     /// `is_ascii_digit` or `is_digit` instead.
     ///
+    /// [USV]: #method.code_points
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`UnicodeData.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
@@ -498,8 +502,8 @@ impl Grapheme {
         self.to_code_point().is_some_and(char::is_numeric)
     }
 
-    /// Returns if the grapheme starts with a code point having the
-    /// `White_Space` property, and the remaining code points have the general
+    /// Returns if the grapheme starts with a [USV] having the
+    /// `White_Space` property, and the remaining [USV]s have the general
     /// category `Cf`, have the `GCB=Extend` property, and are not included in
     /// the following list to mitigate against [CVE-2021-42574]:
     /// - `'\u{202A}'`
@@ -516,6 +520,7 @@ impl Grapheme {
     ///
     /// `White_Space` is specified in the [Unicode Character Database][ucd] [`PropList.txt`].
     ///
+    /// [USV]: #method.code_points
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`PropList.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/PropList.txt
     /// [CVE-2021-42574]: https://nvd.nist.gov/vuln/detail/CVE-2021-42574
@@ -572,14 +577,15 @@ impl Grapheme {
         first && rest
     }
 
-    /// Returns `true` if the `Grapheme` is `g'\r\n'` or its only code point
+    /// Returns `true` if the `Grapheme` is `g'\r\n'` or its only [USV]
     /// has the general category `Cc`.
     ///
-    /// Control codes (code points with the general category of `Cc`) are
+    /// Control codes ([USV]s with the general category of `Cc`) are
     /// described in Chapter 4 (Character Properties) of the [Unicode Standard]
     /// and specified in the [Unicode Character Database][ucd]
     /// [`UnicodeData.txt`].
     ///
+    /// [USV]: #method.code_points
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`UnicodeData.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
@@ -896,7 +902,9 @@ impl Grapheme {
         self.to_code_point().is_some_and(|c| c.is_ascii_control())
     }
 
-    /// Checks if the `Grapheme` contains exactly one code point.
+    /// Checks if the `Grapheme` contains exactly one [USV].
+    ///
+    /// [USV]: #method.code_points
     ///
     /// # Examples
     ///
@@ -915,12 +923,14 @@ impl Grapheme {
         matches!((iter.next(), iter.next()), (Some(_), None))
     }
 
-    /// Returns `Some` if the `Grapheme` contains exactly one code point,
+    /// Returns `Some` if the `Grapheme` contains exactly one [USV],
     /// or `None` if it's not.
     ///
     /// This is preferred to [`Self::is_code_point`] when you're passing the value
     /// along to something else that can take [`char`] rather than
-    /// needing to check again for itself whether the value is one code point.
+    /// needing to check again for itself whether the value is one [USV].
+    ///
+    /// [USV]: #method.code_points
     ///
     /// # Examples
     ///
@@ -944,15 +954,14 @@ impl Grapheme {
         }
     }
 
-    /// Returns an iterator over the [`char`]s of a `&Grapheme`.
+    /// Returns an iterator over the Unicode scalar values (USVs) of a
+    /// `&Grapheme`.
     ///
     /// As a `&Grapheme` consists of valid UTF-8, we can iterate through a
-    /// `&Grapheme` by [`char`]. This method returns such an iterator.
+    /// `&Grapheme` by USV. This method returns such an iterator.
     ///
-    /// It's important to remember that [`char`] represents a Unicode Scalar
-    /// Value, and might not match your idea of what a 'character' is.
-    ///
-    /// [`char`]: prim@char
+    /// It's important to remember that USV might not match your idea of what a
+    /// 'character' is.
     ///
     /// # Examples
     ///
@@ -1062,7 +1071,7 @@ impl Grapheme {
         GraphemeOwned::from_ref(self)
     }
 
-    /// Splits the grapheme into the first code point and the remaining code points.
+    /// Splits the grapheme into the first [USV] and the remaining [USV]s.
     ///
     /// Note that equal graphemes do not always have the same string
     /// representation:
@@ -1078,6 +1087,8 @@ impl Grapheme {
     /// assert!(canonical.split() != non_canonical.split());
     /// ```
     ///
+    /// [USV]: #method.code_points
+    ///
     /// # Examples
     ///
     /// ```
@@ -1091,12 +1102,12 @@ impl Grapheme {
     pub fn split(&self) -> (char, &str) {
         let mut iter = self.0.chars();
         // The operation never falls because the grapheme always contains at
-        // least one code point.
+        // least one [USV].
         let first = iter.next().unwrap();
         (first, iter.as_str())
     }
 
-    /// Splits the grapheme into the remaining code points and the last code point.
+    /// Splits the grapheme into the remaining [USV]s and the last [USV].
     ///
     /// Note that equal graphemes do not always have the same string
     /// representation:
@@ -1111,6 +1122,8 @@ impl Grapheme {
     /// assert_eq!(canonical, non_canonical);
     /// assert!(canonical.split_rev() != non_canonical.split_rev());
     /// ```
+    ///
+    /// [USV]: #method.code_points
     ///
     /// # Examples
     ///

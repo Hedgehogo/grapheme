@@ -47,7 +47,7 @@ fn to_conjunct(grapheme: &Grapheme) -> Option<(&Grapheme, Conjunct)> {
     // L = \p{InCB=Linker}
     let mut iter = grapheme.as_str().char_indices();
 
-    // Any grapheme has at least 1 code point.
+    // Any grapheme has at least 1 USV.
     //
     // Separate `C` from `E* L [EL]* C Any*`
     let (_, _consonant) = iter.next().unwrap();
@@ -57,11 +57,11 @@ fn to_conjunct(grapheme: &Grapheme) -> Option<(&Grapheme, Conjunct)> {
     let maybe_conjunct = iter.find(|(_, c)| is_incb_linker(*c));
 
     if let Some((linker_i, linker)) = maybe_conjunct {
-        // The grapheme has at least the first code point and the found one,
-        // that is, two. The only options for how L could not be at the
-        // beginning are GB9, GB9a and GB9c. But GB9 and GB9a would have
-        // already been processed, so only GB9c remains. This means that there
-        // is at least one C next.
+        // The grapheme has at least the first USV and the found one, that is,
+        // two. The only options for how L could not be at the beginning are
+        // GB9, GB9a and GB9c. But GB9 and GB9a would have already been
+        // processed, so only GB9c remains. This means that there is at least
+        // one C next.
         //
         // `C E* L [EL]* C Any*`
         //               ^ - Looking for this
