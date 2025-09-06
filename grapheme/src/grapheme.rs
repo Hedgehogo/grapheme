@@ -92,7 +92,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///     // First, we build a &[u8]...
 ///     let slice = slice::from_raw_parts(ptr, len);
 ///
-///     // ... and then convert that slice into a string slice
+///     // ... and then convert that slice into a grapheme slice
 ///     str::from_utf8(slice).ok().and_then(Grapheme::from_usvs)
 /// };
 ///
@@ -264,7 +264,7 @@ impl Grapheme {
     /// let ka = g!('क');
     /// let rm = g!("र्म");
     ///
-    /// // both can be represented as three bytes
+    /// // can be represented as three and nine bytes, respectively
     /// assert_eq!(3, ka.len());
     /// assert_eq!(9, rm.len());
     ///
@@ -273,14 +273,14 @@ impl Grapheme {
     ///
     /// let len = ka.len() + rm.len();
     ///
-    /// // we can see that they take six bytes total...
+    /// // we can see that they take twelve bytes in total...
     /// assert_eq!(12, karma.len());
     ///
     /// // ... just like the &Graphemes
     /// assert_eq!(len, karma.len());
     /// ```
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     #[expect(clippy::len_without_is_empty)]
     #[must_use]
     #[inline]
@@ -410,7 +410,7 @@ impl Grapheme {
     /// `Alphabetic` is described in Chapter 4 (Character Properties) of the [Unicode Standard] and
     /// specified in the [Unicode Character Database][ucd] [`DerivedCoreProperties.txt`].
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`DerivedCoreProperties.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt
@@ -489,7 +489,7 @@ impl Grapheme {
     /// If you want to parse ASCII decimal digits (0-9) or ASCII base-N, use
     /// `is_ascii_digit` or `is_digit` instead.
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`UnicodeData.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
@@ -535,7 +535,7 @@ impl Grapheme {
     ///
     /// `White_Space` is specified in the [Unicode Character Database][ucd] [`PropList.txt`].
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`PropList.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/PropList.txt
     /// [CVE-2021-42574]: https://nvd.nist.gov/vuln/detail/CVE-2021-42574
@@ -600,7 +600,7 @@ impl Grapheme {
     /// and specified in the [Unicode Character Database][ucd]
     /// [`UnicodeData.txt`].
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     /// [Unicode Standard]: https://www.unicode.org/versions/latest/
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`UnicodeData.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
@@ -922,7 +922,7 @@ impl Grapheme {
 
     /// Checks if the `Grapheme` contains exactly one [USV].
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     ///
     /// # Examples
     ///
@@ -948,14 +948,12 @@ impl Grapheme {
         self.to_usv()
     }
 
-    /// Returns `Some` if the `Grapheme` contains exactly one [USV],
-    /// or `None` if it's not.
+    /// Returns `Some` if the `Grapheme` contains exactly one Unicode scalar
+    /// value (USV), or `None` if it's not.
     ///
     /// This is preferred to [`Self::is_usv`] when you're passing the value
     /// along to something else that can take [`char`] rather than
-    /// needing to check again for itself whether the value is one [USV].
-    ///
-    /// [USV]: #method.usvs
+    /// needing to check again for itself whether the value is one USV.
     ///
     /// # Examples
     ///
@@ -979,14 +977,15 @@ impl Grapheme {
         }
     }
 
-    /// Returns an iterator over the Unicode scalar values (USVs) of a
-    /// `&Grapheme`.
+    /// Returns an iterator over the [USV]s of a `&Grapheme`.
     ///
     /// As a `&Grapheme` consists of valid UTF-8, we can iterate through a
-    /// `&Grapheme` by USV. This method returns such an iterator.
+    /// `&Grapheme` by [USV]. This method returns such an iterator.
     ///
-    /// It's important to remember that USV might not match your idea of what a
+    /// It's important to remember that [USV] might not match your idea of what a
     /// 'character' is.
+    ///
+    /// [USV]: #method.to_usv
     ///
     /// # Examples
     ///
@@ -1116,7 +1115,7 @@ impl Grapheme {
     /// assert!(canonical.split() != non_canonical.split());
     /// ```
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     ///
     /// # Examples
     ///
@@ -1152,7 +1151,7 @@ impl Grapheme {
     /// assert!(canonical.split_rev() != non_canonical.split_rev());
     /// ```
     ///
-    /// [USV]: #method.usvs
+    /// [USV]: #method.to_usv
     ///
     /// # Examples
     ///
