@@ -190,7 +190,7 @@ impl From<GraphemeOwned> for Box<Grapheme> {
 ///
 /// `MaybeGraphemeOwned` is arranged in the same way as [`GraphemeOwned`], but
 /// has a buffer length of zero when it contains `None`.
-#[derive(Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Clone, Eq)]
 #[repr(transparent)]
 pub struct MaybeGraphemeOwned(GraphemeOwnedInner);
 
@@ -318,6 +318,18 @@ impl MaybeGraphemeOwned {
 impl fmt::Debug for MaybeGraphemeOwned {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.as_ref(), f)
+    }
+}
+
+impl PartialEq for MaybeGraphemeOwned {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_deref() == other.as_deref()
+    }
+}
+
+impl Hash for MaybeGraphemeOwned {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_deref().hash(state);
     }
 }
 
