@@ -201,6 +201,20 @@ impl Grapheme {
     ///
     /// That number of bytes is always greater than 0.
     ///
+    /// Note that equal graphemes do not always have the same byte
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFC
+    /// let canonical = g!("\u{00c7}\u{0304}");
+    /// let non_canonical = g!("C\u{0327}\u{0304}");
+    ///
+    /// assert_eq!(g!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.len() != non_canonical.len());
+    /// ```
+    ///
     /// # Examples
     ///
     /// Basic usage:
@@ -479,7 +493,7 @@ impl Grapheme {
     /// Returns if the grapheme starts with a code point having the
     /// `White_Space` property, and the remaining code points have the general
     /// category `Cf`, have the `GCB=Extend` property, and are not included in
-    /// the following list:
+    /// the following list to mitigate against [CVE-2021-42574]:
     /// - `'\u{202A}'`
     /// - `'\u{202B}'`
     /// - `'\u{202C}'`
@@ -496,6 +510,7 @@ impl Grapheme {
     ///
     /// [ucd]: https://www.unicode.org/reports/tr44/
     /// [`PropList.txt`]: https://www.unicode.org/Public/UCD/latest/ucd/PropList.txt
+    /// [CVE-2021-42574]: https://nvd.nist.gov/vuln/detail/CVE-2021-42574
     ///
     /// # Examples
     ///
@@ -972,6 +987,20 @@ impl Grapheme {
 
     /// Returns a string slice of this `Grapheme`'s contents.
     ///
+    /// Note that equal graphemes do not always have the same string
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = g!("C\u{0327}\u{0304}");
+    /// let non_canonical = g!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(g!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.as_str() != non_canonical.as_str());
+    /// ```
+    ///
     /// # Examples
     ///
     /// ```
@@ -987,6 +1016,20 @@ impl Grapheme {
     }
 
     /// Returns a byte slice of this `Grapheme`'s contents.
+    ///
+    /// Note that equal graphemes do not always have the same byte
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = g!("C\u{0327}\u{0304}");
+    /// let non_canonical = g!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(g!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.as_bytes() != non_canonical.as_bytes());
+    /// ```
     ///
     /// # Examples
     ///
@@ -1009,6 +1052,20 @@ impl Grapheme {
 
     /// Splits the grapheme into the first code point and the remaining code points.
     ///
+    /// Note that equal graphemes do not always have the same string
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = g!("C\u{0327}\u{0304}");
+    /// let non_canonical = g!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(g!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.split() != non_canonical.split());
+    /// ```
+    ///
     /// # Examples
     ///
     /// ```
@@ -1021,12 +1078,27 @@ impl Grapheme {
     #[inline]
     pub fn split(&self) -> (char, &str) {
         let mut iter = self.0.chars();
-        // The operation never falls because the grapheme always contains at least one code point.
+        // The operation never falls because the grapheme always contains at
+        // least one code point.
         let first = iter.next().unwrap();
         (first, iter.as_str())
     }
 
     /// Splits the grapheme into the remaining code points and the last code point.
+    ///
+    /// Note that equal graphemes do not always have the same string
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = g!("C\u{0327}\u{0304}");
+    /// let non_canonical = g!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(g!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.split_rev() != non_canonical.split_rev());
+    /// ```
     ///
     /// # Examples
     ///
@@ -1040,7 +1112,8 @@ impl Grapheme {
     #[inline]
     pub fn split_rev(&self) -> (&str, char) {
         let mut iter = self.0.char_indices().rev();
-        // Never falls because the grapheme always contains at least one code point.
+        // Never falls because the grapheme always contains at least one code
+        // point.
         let (i, last) = iter.next().unwrap();
         let (rest, _) = self.0.split_at(i);
         (rest, last)
