@@ -17,7 +17,7 @@ dependencies = [
 name = "grapheme"
 version = "1.1.2"
 dependencies = [
- "grapheme_macro 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "grapheme_macro 1.0.0",
  "icu_properties",
  "smallvec",
  "unicode-normalization",
@@ -27,6 +27,8 @@ dependencies = [
 [[package]]
 name = "grapheme_macro"
 version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "883d20192d6fdbb9481e0d8993f66ad0662ffe79eb4339980af165fcfb0b74f3"
 dependencies = [
  "quote",
  "syn",
@@ -35,9 +37,7 @@ dependencies = [
 
 [[package]]
 name = "grapheme_macro"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "883d20192d6fdbb9481e0d8993f66ad0662ffe79eb4339980af165fcfb0b74f3"
+version = "2.0.0"
 dependencies = [
  "quote",
  "syn",

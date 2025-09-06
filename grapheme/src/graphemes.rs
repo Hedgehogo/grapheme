@@ -4,7 +4,8 @@
 
 use super::Grapheme;
 use std::ops::Deref;
-use std::{fmt, str::Chars};
+use std::{fmt, hash::Hash, str::Chars};
+use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Graphemes` type, also called a ‘grapheme slice’. It is usually seen
@@ -57,7 +58,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// assert_eq!(g, Some(story));
 /// ```
-#[derive(PartialEq, Eq)]
+#[derive(Eq)]
 #[repr(transparent)]
 pub struct Graphemes(str);
 
@@ -114,24 +115,6 @@ impl Graphemes {
     /// Value, and might not match your idea of what a 'character' is.
     ///
     /// [`char`]: prim@char
-    ///
-    /// # Examples
-    ///
-    /// Basic usage:
-    ///
-    /// ```
-    /// # use grapheme::prelude::*;
-    /// let yes = gs!("y̆es");
-    ///
-    /// let mut code_points = yes.code_points();
-    ///
-    /// assert_eq!(Some('y'), code_points.next()); // not 'y̆'
-    /// assert_eq!(Some('\u{0306}'), code_points.next());
-    /// assert_eq!(Some('e'), code_points.next());
-    /// assert_eq!(Some('s'), code_points.next());
-    ///
-    /// assert_eq!(None, code_points.next());
-    /// ```
     #[inline]
     #[doc(alias = "chars", alias = "usvs")]
     #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
@@ -140,6 +123,29 @@ impl Graphemes {
     }
 
     /// Returns a string slice of this `&Graphemes`’s contents.
+    ///
+    /// Note that equal graphemes do not always have the same string
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = gs!("C\u{0327}\u{0304}");
+    /// let non_canonical = gs!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(gs!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.as_str() != non_canonical.as_str());
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let s = gs!("y̆es");
+    ///
+    /// assert_eq!("y̆es", s.as_str());
+    /// ```
     #[must_use]
     #[inline]
     pub const fn as_str(&self) -> &str {
@@ -165,6 +171,21 @@ impl fmt::Debug for Graphemes {
 impl fmt::Display for Graphemes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl PartialEq for Graphemes {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.nfd().eq(other.0.nfd())
+    }
+}
+
+impl Hash for Graphemes {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for usv in self.0.nfd() {
+            state.write_u32(usv as u32);
+        }
+        state.write_u8(0xFF);
     }
 }
 
