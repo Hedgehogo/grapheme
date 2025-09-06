@@ -1,5 +1,5 @@
 use crate::Grapheme;
-use ucd::{Codepoint, GraphemeClusterBreak};
+use icu_properties::{CodePointMapData, props::GraphemeClusterBreak};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Conjunct<'g> {
@@ -29,7 +29,11 @@ impl<'g> Modification<'g> {
     }
 }
 
-pub(crate) fn is_incb_linker(c: char) -> bool {
+fn gcb(c: char) -> GraphemeClusterBreak {
+    CodePointMapData::<GraphemeClusterBreak>::new().get(c)
+}
+
+fn is_incb_linker(c: char) -> bool {
     matches!(c, |'\u{94D}'| '\u{9CD}'
         | '\u{ACD}'
         | '\u{B4D}'
@@ -63,10 +67,8 @@ fn to_conjunct(grapheme: &Grapheme) -> Option<(&Grapheme, Conjunct)> {
         //               ^ - Looking for this
         let (rest_i, _) = iter
             .find(|(_, c)| {
-                !matches!(
-                    c.grapheme_cluster_break(),
-                    GraphemeClusterBreak::Extend | GraphemeClusterBreak::SpacingMark
-                )
+                let gcb = gcb(*c);
+                gcb != GraphemeClusterBreak::Extend && gcb != GraphemeClusterBreak::SpacingMark
             })
             .unwrap();
 
@@ -114,29 +116,27 @@ pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modificatio
     }
 
     let (rest, last) = grapheme.split_rev();
+    let last_gcb = gcb(last);
 
-    match last.grapheme_cluster_break() {
-        GraphemeClusterBreak::Extend => {
-            let grapheme = Grapheme::from_code_points(rest).unwrap();
-            return Some((grapheme, Modification::Extend(last)));
-        }
+    if last_gcb == GraphemeClusterBreak::Extend {
+        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        return Some((grapheme, Modification::Extend(last)));
+    }
 
-        GraphemeClusterBreak::ZWJ => {
-            let grapheme = Grapheme::from_code_points(rest).unwrap();
-            return Some((grapheme, Modification::Zwj));
-        }
+    if last_gcb == GraphemeClusterBreak::ZWJ {
+        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        return Some((grapheme, Modification::Zwj));
+    }
 
-        GraphemeClusterBreak::SpacingMark => {
-            let grapheme = Grapheme::from_code_points(rest).unwrap();
-            return Some((grapheme, Modification::SpacingMark(last)));
-        }
-
-        _ => {}
+    if last_gcb == GraphemeClusterBreak::SpacingMark {
+        let grapheme = Grapheme::from_code_points(rest).unwrap();
+        return Some((grapheme, Modification::SpacingMark(last)));
     }
 
     let (first, rest) = grapheme.split();
+    let first_gcb = gcb(first);
 
-    if let GraphemeClusterBreak::Prepend = first.grapheme_cluster_break() {
+    if first_gcb == GraphemeClusterBreak::Prepend {
         let grapheme = Grapheme::from_code_points(rest).unwrap();
         return Some((grapheme, Modification::Prepend(first)));
     }

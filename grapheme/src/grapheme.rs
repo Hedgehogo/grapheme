@@ -3,13 +3,16 @@
 //! *[See also the `Grapheme` type.](Grapheme)*
 
 use crate::GraphemeOwned;
+use icu_properties::{
+    CodePointMapData,
+    props::{CanonicalCombiningClass, GeneralCategory, GraphemeClusterBreak},
+};
 use std::{
     cmp::PartialEq,
     fmt,
     hash::Hash,
     str::{Bytes, Chars},
 };
-use ucd::{Codepoint, GraphemeClusterBreak, UnicodeCategory};
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -412,9 +415,14 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn is_alphabetic(&self) -> bool {
+        let is_diacritic = |c| {
+            let ccc = CodePointMapData::<CanonicalCombiningClass>::new().get(c);
+            ccc != CanonicalCombiningClass::NotReordered
+        };
+
         let (first, rest) = self.split();
         let first = first.is_alphabetic();
-        let rest = rest.chars().all(|c| c.is_diacritic() || c.is_alphabetic());
+        let rest = rest.chars().all(|c| is_diacritic(c) || c.is_alphabetic());
         first && rest
     }
 
@@ -537,7 +545,13 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub fn is_whitespace(&self) -> bool {
-        let not_embeding = |c| {
+        let is_extend_format = |c| {
+            let category = CodePointMapData::<GeneralCategory>::new().get(c);
+            let gcb = CodePointMapData::<GraphemeClusterBreak>::new().get(c);
+            category == GeneralCategory::Format && gcb == GraphemeClusterBreak::Extend
+        };
+
+        let is_not_embeding = |c| {
             ![
                 '\u{202A}', '\u{202B}', '\u{202C}', '\u{202D}', '\u{202E}', '\u{2066}', '\u{2067}',
                 '\u{2068}', '\u{2069}',
@@ -551,11 +565,9 @@ impl Grapheme {
 
         let (first, rest) = self.split();
         let first = first.is_whitespace();
-        let rest = rest.chars().all(|c| {
-            not_embeding(c)
-                && c.category() == UnicodeCategory::Format
-                && c.grapheme_cluster_break() == GraphemeClusterBreak::Extend
-        });
+        let rest = rest
+            .chars()
+            .all(|c| is_not_embeding(c) && is_extend_format(c));
 
         first && rest
     }
