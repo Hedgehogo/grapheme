@@ -624,20 +624,26 @@ impl Grapheme {
         self.as_str() == "\r\n" || self.to_usv().is_some_and(char::is_control)
     }
 
-    /// Checks if the value is within the ASCII range.
+    /// Checks that all [USV]s are within the ASCII range.
+    ///
+    /// Note that the only `Grapheme` containing more than one [USV] suitable
+    /// for this condition is `g'\r\n'`.
+    ///
+    /// [USV]: #method.to_usv
     ///
     /// # Examples
     ///
     /// ```
     /// # use grapheme::prelude::*;
     /// assert!(g!('a').is_ascii());
+    /// assert!(g!("\r\n").is_ascii());
     /// assert!(!g!('❤').is_ascii());
     /// assert!(!g!("❤️").is_ascii());
     /// ```
     #[must_use]
     #[inline]
     pub fn is_ascii(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii())
+        self.as_str() == "\r\n" || self.to_usv().is_some_and(|c| c.is_ascii())
     }
 
     /// Checks if the value is an ASCII alphabetic character:
@@ -657,6 +663,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -668,6 +675,7 @@ impl Grapheme {
     /// assert!(!percent.is_ascii_alphabetic());
     /// assert!(!space.is_ascii_alphabetic());
     /// assert!(!lf.is_ascii_alphabetic());
+    /// assert!(!crlf.is_ascii_alphabetic());
     /// assert!(!esc.is_ascii_alphabetic());
     /// assert!(!rk.is_ascii_alphabetic());
     /// ```
@@ -695,6 +703,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -706,6 +715,7 @@ impl Grapheme {
     /// assert!(!percent.is_ascii_alphanumeric());
     /// assert!(!space.is_ascii_alphanumeric());
     /// assert!(!lf.is_ascii_alphanumeric());
+    /// assert!(!crlf.is_ascii_alphanumeric());
     /// assert!(!esc.is_ascii_alphanumeric());
     /// assert!(!rk.is_ascii_alphanumeric());
     /// ```
@@ -730,6 +740,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -741,6 +752,7 @@ impl Grapheme {
     /// assert!(!percent.is_ascii_digit());
     /// assert!(!space.is_ascii_digit());
     /// assert!(!lf.is_ascii_digit());
+    /// assert!(!crlf.is_ascii_digit());
     /// assert!(!esc.is_ascii_digit());
     /// assert!(!rk.is_ascii_digit());
     /// ```
@@ -769,6 +781,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -780,6 +793,7 @@ impl Grapheme {
     /// assert!(percent.is_ascii_punctuation());
     /// assert!(!space.is_ascii_punctuation());
     /// assert!(!lf.is_ascii_punctuation());
+    /// assert!(!crlf.is_ascii_punctuation());
     /// assert!(!esc.is_ascii_punctuation());
     /// assert!(!rk.is_ascii_punctuation());
     /// ```
@@ -804,6 +818,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -815,6 +830,7 @@ impl Grapheme {
     /// assert!(percent.is_ascii_graphic());
     /// assert!(!space.is_ascii_graphic());
     /// assert!(!lf.is_ascii_graphic());
+    /// assert!(!crlf.is_ascii_graphic());
     /// assert!(!esc.is_ascii_graphic());
     /// assert!(!rk.is_ascii_graphic());
     /// ```
@@ -824,9 +840,9 @@ impl Grapheme {
         self.as_str().chars().any(|c| c.is_ascii_graphic())
     }
 
-    /// Checks if the value is an ASCII whitespace character:
+    /// Checks if the value is an ASCII whitespace:
     /// U+0020 SPACE, U+0009 HORIZONTAL TAB, U+000A LINE FEED,
-    /// U+000C FORM FEED, or U+000D CARRIAGE RETURN.
+    /// U+000C FORM FEED, U+000D CARRIAGE RETURN or U+000D + U+000A.
     ///
     /// Rust uses the WhatWG Infra Standard's [definition of ASCII
     /// whitespace][infra-aw]. There are several other definitions in
@@ -840,6 +856,7 @@ impl Grapheme {
     /// file format, check what that format's definition of whitespace is
     /// before using this function.
     ///
+    /// [USV]: #method.to_usv
     /// [infra-aw]: https://infra.spec.whatwg.org/#ascii-whitespace
     /// [pct]: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html#tag_07_03_01
     /// [bfs]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_06_05
@@ -856,6 +873,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -867,19 +885,25 @@ impl Grapheme {
     /// assert!(!percent.is_ascii_whitespace());
     /// assert!(space.is_ascii_whitespace());
     /// assert!(lf.is_ascii_whitespace());
+    /// assert!(crlf.is_ascii_whitespace());
     /// assert!(!esc.is_ascii_whitespace());
     /// assert!(!rk.is_ascii_whitespace());
     /// ```
     #[must_use]
     #[inline]
     pub fn is_ascii_whitespace(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii_whitespace())
+        self.as_str() == "\r\n" || self.to_usv().is_some_and(|c| c.is_ascii_whitespace())
     }
 
-    /// Checks if the value is an ASCII control character:
+    /// Checks if the value is an ASCII control:
     /// U+0000 NUL ..= U+001F UNIT SEPARATOR, or U+007F DELETE.
     /// Note that most ASCII whitespace characters are control
     /// characters, but SPACE is not.
+    ///
+    /// Note that the only `Grapheme` containing more than one [USV] suitable
+    /// for this condition is `g'\r\n'`.
+    ///
+    /// [USV]: #method.to_usv
     ///
     /// # Examples
     ///
@@ -893,6 +917,7 @@ impl Grapheme {
     /// let percent = g!('%');
     /// let space = g!(' ');
     /// let lf = g!('\n');
+    /// let crlf = g!("\r\n");
     /// let esc = g!('\x1b');
     /// let rk = g!("र्क");
     ///
@@ -904,13 +929,14 @@ impl Grapheme {
     /// assert!(!percent.is_ascii_control());
     /// assert!(!space.is_ascii_control());
     /// assert!(lf.is_ascii_control());
+    /// assert!(crlf.is_ascii_control());
     /// assert!(esc.is_ascii_control());
     /// assert!(!rk.is_ascii_control());
     /// ```
     #[must_use]
     #[inline]
     pub fn is_ascii_control(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii_control())
+        self.as_str() == "\r\n" || self.to_usv().is_some_and(|c| c.is_ascii_control())
     }
 
     /// Alias for [`is_usv`](#method.is_usv).
