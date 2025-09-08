@@ -79,6 +79,123 @@ impl Graphemes {
         unsafe { &*(inner as *const str as *const Self) }
     }
 
+    /// Converts a `Box<Graphemes>` into a `Box<str>` without copying or allocating.
+    ///
+    /// Note that equal graphemes do not always have the same string
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = gs!("C\u{0327}\u{0304}");
+    /// let non_canonical = gs!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(gs!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.as_str() != non_canonical.as_str());
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let s = gs!("this is a grapheme string");
+    /// let boxed_graphemes = Box::<Graphemes>::from(s);
+    /// let boxed_str = boxed_graphemes.into_boxed_str();
+    /// assert_eq!(*boxed_str, *s.as_str());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn into_boxed_str(self: Box<Self>) -> Box<str> {
+        self.into()
+    }
+
+    /// Converts a `Box<Graphemes>` into a `Box<[u8]>` without copying or allocating.
+    ///
+    /// Note that equal graphemes do not always have the same byte
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = gs!("C\u{0327}\u{0304}");
+    /// let non_canonical = gs!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(gs!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.as_bytes() != non_canonical.as_bytes());
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let s = gs!("this is a grapheme string");
+    /// let boxed_graphemes = Box::<Graphemes>::from(s);
+    /// let boxed_str = boxed_graphemes.into_boxed_bytes();
+    /// assert_eq!(*boxed_str, *s.as_bytes());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn into_boxed_bytes(self: Box<Self>) -> Box<[u8]> {
+        self.into()
+    }
+
+    /// Returns the length of `self`.
+    ///
+    /// This length is in bytes, not [USV]s or graphemes. In other words,
+    /// it might not be what a human considers the length of the string.
+    ///
+    /// Note that equal graphemes do not always have the same byte
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFC
+    /// let canonical = g!("\u{00c7}\u{0304}");
+    /// let non_canonical = g!("C\u{0327}\u{0304}");
+    ///
+    /// assert_eq!(g!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.len() != non_canonical.len());
+    /// ```
+    ///
+    /// [USV]: prim@char
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let len = gs!("yes").len();
+    /// assert_eq!(3, len);
+    ///
+    /// assert_eq!(gs!("y̆es").len(), 5); // unusual y!
+    /// assert_eq!(gs!("y̆es").iter().count(), 3);
+    /// ```
+    #[must_use]
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.as_str().len()
+    }
+
+    /// Returns `true` if `self` has a length of zero bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let s = gs!("");
+    /// assert!(s.is_empty());
+    ///
+    /// let s = gs!("not empty");
+    /// assert!(!s.is_empty());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns an iterator over the [`Grapheme`]s of a `Graphemes`.
     ///
     /// As a `&Grapheme` consists of valid Unicode, we can iterate through a
@@ -169,6 +286,36 @@ impl Graphemes {
     #[inline]
     pub const fn as_str(&self) -> &str {
         &self.0
+    }
+
+    /// Returns a byte slice of this `&Graphemes`'s contents.
+    ///
+    /// Note that equal graphemes do not always have the same byte
+    /// representation:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// // Within NFD
+    /// let canonical = gs!("C\u{0327}\u{0304}");
+    /// let non_canonical = gs!("C\u{0304}\u{0327}");
+    ///
+    /// assert_eq!(gs!("Ç̄"), canonical);
+    /// assert_eq!(canonical, non_canonical);
+    /// assert!(canonical.as_bytes() != non_canonical.as_bytes());
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let s = gs!("y̆es");
+    ///
+    /// assert_eq!(&[b'y', 204, 134, b'e', b's'], s.as_bytes());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub const fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
     }
 }
 
