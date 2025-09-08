@@ -242,8 +242,43 @@ impl Graphemes {
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter(&self) -> Iter<'_> {
-        self.into_iter()
+    pub fn iter(&self) -> Iter {
+        Iter::new(self)
+    }
+
+    /// Returns an iterator over the [`Grapheme`]s and their byte indices of a
+    /// `Graphemes`.
+    ///
+    /// As a graphemes slice consists of valid UTF-8, we can iterate through a
+    /// graphemes slice by [`Grapheme`]. This method returns an iterator of
+    /// both these [`Grapheme`]s, as well as their byte positions.
+    ///
+    /// The iterator yields tuples. The position is first, the [`Grapheme`] is
+    /// second.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let word = gs!("y̆es");
+    ///
+    /// let count = word.iter_with_indices().count();
+    /// assert_eq!(3, count);
+    ///
+    /// let mut iter = word.iter_with_indices();
+    ///
+    /// assert_eq!(Some((0, g!("y̆"))), iter.next());
+    /// assert_eq!(Some((3, g!('e'))), iter.next());
+    /// assert_eq!(Some((4, g!('s'))), iter.next());
+    ///
+    /// assert_eq!(None, iter.next());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn iter_with_indices(&self) -> IterWithIndices {
+        IterWithIndices::new(self)
     }
 
     /// Returns an iterator over the [`char`]s of a `&Graphemes`.
@@ -460,14 +495,19 @@ impl<'src> IntoIterator for &'src Graphemes {
 #[deprecated(since = "1.2.0", note = "use `Iter` instead")]
 pub type GraphemesIter<'g> = Iter<'g>;
 
-/// Grapheme iterator type.
+/// An iterator over the [`Grapheme`]s of a graphemes slice.
+///
+/// This struct is created by the [`iter`] method on
+/// [`Graphemes`]. See its documentation for more.
+///
+/// [`iter`]: Graphemes::iter    
 #[derive(Debug, Clone)]
 pub struct Iter<'g> {
     iter: unicode_segmentation::Graphemes<'g>,
 }
 
 impl<'g> Iter<'g> {
-    /// Create a new grapheme iterator.
+    /// Creates new `Iter`.
     pub fn new(graphemes: &'g Graphemes) -> Self {
         Self {
             iter: graphemes.as_str().graphemes(true),
@@ -502,5 +542,54 @@ impl DoubleEndedIterator for Iter<'_> {
         self.iter
             .next_back()
             .map(|grapheme| unsafe { Grapheme::from_usvs_unchecked(grapheme) })
+    }
+}
+
+/// An iterator over the [`Grapheme`]s and their byte indices of a graphemes slice.
+///
+/// This struct is created by the [`iter_with_indices`] method on [`Graphemes`]. See its documentation for more.
+///
+/// [`iter_with_indices`]: Graphemes::iter_with_indices
+#[derive(Debug, Clone)]
+pub struct IterWithIndices<'g> {
+    iter: unicode_segmentation::GraphemeIndices<'g>,
+}
+
+impl<'g> IterWithIndices<'g> {
+    /// Creates new `IterWithIndices`.
+    pub fn new(graphemes: &'g Graphemes) -> Self {
+        Self {
+            iter: graphemes.as_str().grapheme_indices(true),
+        }
+    }
+
+    /// Returns a string slice of this `&Graphemes`’s contents.
+    pub fn as_str(self) -> &'g str {
+        self.iter.as_str()
+    }
+}
+
+impl<'g> Iterator for IterWithIndices<'g> {
+    type Item = (usize, &'g Grapheme);
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|(i, g)| (i, unsafe { Grapheme::from_usvs_unchecked(g) }))
+    }
+}
+
+impl DoubleEndedIterator for IterWithIndices<'_> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next_back()
+            .map(|(i, g)| (i, unsafe { Grapheme::from_usvs_unchecked(g) }))
     }
 }
