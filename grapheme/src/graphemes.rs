@@ -196,6 +196,29 @@ impl Graphemes {
         self.len() == 0
     }
 
+    /// Checks if all [`Grapheme`]s in this string are within the ASCII range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let ascii = gs!("hello!\r\n");
+    /// let non_ascii = gs!("Grüße, Jürgen ❤");
+    ///
+    /// assert!(ascii.is_ascii());
+    /// assert!(!non_ascii.is_ascii());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub const fn is_ascii(&self) -> bool {
+        // We can treat each byte as USV here: all multibyte USVs start with a
+        // byte that is not in the ASCII range, so we will stop there already.
+        //
+        // In a single ASCII grapheme consisting of several bytes (g'\r\n'),
+        // each byte is ASCII.
+        self.as_bytes().is_ascii()
+    }
+
     /// Returns an iterator over the [`Grapheme`]s of a `Graphemes`.
     ///
     /// As a `&Grapheme` consists of valid Unicode, we can iterate through a
