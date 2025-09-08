@@ -642,8 +642,8 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii(&self) -> bool {
-        self.as_str() == "\r\n" || self.to_usv().is_some_and(|c| c.is_ascii())
+    pub const fn is_ascii(&self) -> bool {
+        self.as_bytes().is_ascii()
     }
 
     /// Checks if the value is an ASCII alphabetic character:
@@ -681,8 +681,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_alphabetic(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii_alphabetic())
+    pub const fn is_ascii_alphabetic(&self) -> bool {
+        if let [only] = self.as_bytes() {
+            only.is_ascii_alphabetic()
+        } else {
+            false
+        }
     }
 
     /// Checks if the value is an ASCII alphanumeric character:
@@ -721,8 +725,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_alphanumeric(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii_alphanumeric())
+    pub const fn is_ascii_alphanumeric(&self) -> bool {
+        if let [only] = self.as_bytes() {
+            only.is_ascii_alphanumeric()
+        } else {
+            false
+        }
     }
 
     /// Checks if the value is an ASCII decimal digit:
@@ -758,8 +766,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_digit(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii_digit())
+    pub const fn is_ascii_digit(&self) -> bool {
+        if let [only] = self.as_bytes() {
+            only.is_ascii_digit()
+        } else {
+            false
+        }
     }
 
     /// Checks if the value is an ASCII punctuation character:
@@ -799,8 +811,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_punctuation(&self) -> bool {
-        self.to_usv().is_some_and(|c| c.is_ascii_punctuation())
+    pub const fn is_ascii_punctuation(&self) -> bool {
+        if let [only] = self.as_bytes() {
+            only.is_ascii_punctuation()
+        } else {
+            false
+        }
     }
 
     /// Checks if the value is an ASCII graphic character:
@@ -836,8 +852,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_graphic(&self) -> bool {
-        self.as_str().chars().any(|c| c.is_ascii_graphic())
+    pub const fn is_ascii_graphic(&self) -> bool {
+        if let [only] = self.as_bytes() {
+            only.is_ascii_graphic()
+        } else {
+            false
+        }
     }
 
     /// Checks if the value is an ASCII whitespace:
@@ -891,8 +911,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_whitespace(&self) -> bool {
-        self.as_str() == "\r\n" || self.to_usv().is_some_and(|c| c.is_ascii_whitespace())
+    pub const fn is_ascii_whitespace(&self) -> bool {
+        match self.as_bytes() {
+            b"\r\n" => true,
+            [only] => only.is_ascii_whitespace(),
+            _ => false,
+        }
     }
 
     /// Checks if the value is an ASCII control:
@@ -935,8 +959,12 @@ impl Grapheme {
     /// ```
     #[must_use]
     #[inline]
-    pub fn is_ascii_control(&self) -> bool {
-        self.as_str() == "\r\n" || self.to_usv().is_some_and(|c| c.is_ascii_control())
+    pub const fn is_ascii_control(&self) -> bool {
+        match self.as_bytes() {
+            b"\r\n" => true,
+            [only] => only.is_ascii_control(),
+            _ => false,
+        }
     }
 
     /// Alias for [`is_usv`](#method.is_usv).
