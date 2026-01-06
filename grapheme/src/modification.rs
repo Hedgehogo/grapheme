@@ -115,7 +115,7 @@ pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modificatio
         return None;
     }
 
-    let (rest, last) = grapheme.split_rev();
+    let (rest, last) = grapheme.to_last_usv();
     let last_gcb = gcb(last);
 
     if last_gcb == GraphemeClusterBreak::Extend {
@@ -133,7 +133,7 @@ pub(crate) fn to_modified(grapheme: &Grapheme) -> Option<(&Grapheme, Modificatio
         return Some((grapheme, Modification::SpacingMark(last)));
     }
 
-    let (first, rest) = grapheme.split();
+    let (first, rest) = grapheme.to_first_usv();
     let first_gcb = gcb(first);
 
     if first_gcb == GraphemeClusterBreak::Prepend {

@@ -487,7 +487,7 @@ impl Grapheme {
             ccc != CanonicalCombiningClass::NotReordered
         };
 
-        let (first, rest) = self.split();
+        let (first, rest) = self.to_first_usv();
         let first = first.is_alphabetic();
         let rest = rest.chars().all(|c| is_diacritic(c) || c.is_alphabetic());
         first && rest
@@ -632,7 +632,7 @@ impl Grapheme {
             return true;
         }
 
-        let (first, rest) = self.split();
+        let (first, rest) = self.to_first_usv();
         let first = first.is_whitespace();
         let rest = rest
             .chars()
@@ -1215,7 +1215,7 @@ impl Grapheme {
     ///
     /// assert_eq!(g!("Ç̄"), canonical);
     /// assert_eq!(canonical, non_canonical);
-    /// assert!(canonical.split() != non_canonical.split());
+    /// assert!(canonical.to_first_usv() != non_canonical.to_first_usv());
     /// ```
     ///
     /// [USV]: #method.to_usv
@@ -1224,13 +1224,13 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let (usv, rest) = g!("y̆").split();
+    /// let (usv, rest) = g!("y̆").to_first_usv();
     ///
     /// assert_eq!('y', usv);
     /// assert_eq!("\u{0306}", rest);
     /// ```
     #[inline]
-    pub fn split(&self) -> (char, &str) {
+    pub fn to_first_usv(&self) -> (char, &str) {
         let mut iter = self.0.chars();
         // The operation never falls because the grapheme always contains at
         // least one [USV].
@@ -1251,7 +1251,7 @@ impl Grapheme {
     ///
     /// assert_eq!(g!("Ç̄"), canonical);
     /// assert_eq!(canonical, non_canonical);
-    /// assert!(canonical.split_rev() != non_canonical.split_rev());
+    /// assert!(canonical.to_last_usv() != non_canonical.to_last_usv());
     /// ```
     ///
     /// [USV]: #method.to_usv
@@ -1260,13 +1260,13 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let (rest, usv) = g!("y̆").split_rev();
+    /// let (rest, usv) = g!("y̆").to_last_usv();
     ///
     /// assert_eq!("y", rest);
     /// assert_eq!('\u{0306}', usv);
     /// ```
     #[inline]
-    pub fn split_rev(&self) -> (&str, char) {
+    pub fn to_last_usv(&self) -> (&str, char) {
         let mut iter = self.0.char_indices().rev();
         // Never falls because the grapheme always contains at least one code
         // point.
