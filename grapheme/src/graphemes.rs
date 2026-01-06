@@ -3,7 +3,6 @@
 //! *[See also the `Graphemes` type.](Graphemes)*
 
 use super::Grapheme;
-use std::ops::Deref;
 use std::{fmt, hash::Hash, str::Chars};
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
@@ -409,14 +408,6 @@ impl Graphemes {
     #[inline]
     pub const fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
-    }
-}
-
-impl Deref for Graphemes {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
