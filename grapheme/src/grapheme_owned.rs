@@ -5,6 +5,7 @@
 use super::Grapheme;
 use smallvec::SmallVec;
 use std::{
+    borrow::{Borrow, BorrowMut},
     fmt,
     hash::Hash,
     ops::{Deref, DerefMut},
@@ -128,6 +129,18 @@ impl Deref for GraphemeOwned {
 
 impl DerefMut for GraphemeOwned {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        GraphemeOwned::as_grapheme_mut(self)
+    }
+}
+
+impl Borrow<Grapheme> for GraphemeOwned {
+    fn borrow(&self) -> &Grapheme {
+        GraphemeOwned::as_grapheme(self)
+    }
+}
+
+impl BorrowMut<Grapheme> for GraphemeOwned {
+    fn borrow_mut(&mut self) -> &mut Grapheme {
         GraphemeOwned::as_grapheme_mut(self)
     }
 }

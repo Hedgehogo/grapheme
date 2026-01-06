@@ -1366,6 +1366,14 @@ impl Hash for Grapheme {
     }
 }
 
+impl ToOwned for Grapheme {
+    type Owned = GraphemeOwned;
+
+    fn to_owned(&self) -> Self::Owned {
+        Grapheme::to_owned(self)
+    }
+}
+
 impl AsRef<str> for Grapheme {
     fn as_ref(&self) -> &str {
         self.as_str()
