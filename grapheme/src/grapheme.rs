@@ -98,6 +98,55 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// assert_eq!(g, Some(strange));
 /// ```
+///
+/// # Normalization
+///
+/// `Grapheme` stores an unnormalized slice of a string. For some
+/// operations, it is normalized on the fly. In most cases, these
+/// performance losses are minimal and less significant than losses
+/// when allocating a normalized string.
+///
+/// Implementations of traits such as [`Hash`], [`PartialEq`], and
+/// [`PartialOrd`] rely on a [NFD] normalized version of a string
+/// representing a grapheme cluster:
+///
+/// ```
+/// # use grapheme::prelude::*;
+/// use std::hash::{DefaultHasher, Hash, Hasher};
+/// use std::cmp::Ordering;
+///
+/// # fn main() {
+/// // Within NFC
+/// let canonical = g!("\u{00c7}\u{0304}");
+/// let non_canonical = g!("C\u{0327}\u{0304}");
+///
+/// assert_eq!(g!("Ç̄"), canonical);
+/// assert_eq!(canonical, non_canonical);
+/// assert_eq!(canonical.cmp(non_canonical), Ordering::Equal);
+/// assert_eq!(calculate_hash(&canonical), calculate_hash(&non_canonical));
+/// # }
+///
+/// fn calculate_hash<T: Hash>(t: &T) -> u64 {
+///     let mut s = DefaultHasher::new();
+///     t.hash(&mut s);
+///     s.finish()
+/// }
+/// ```
+///
+/// The [`Ord`] and [`PartialOrd`] implementations compare [USV]
+/// sequences [lexicographically](Ord#lexicographical-comparison):
+///
+/// ```
+/// # use grapheme::prelude::*;
+/// use std::cmp::Ordering;
+///
+/// assert_eq!(g!("Ç̄").cmp(g!("Ç̄")), Ordering::Equal);
+/// assert_eq!(g!("Ç̄").cmp(g!("Ç")), Ordering::Greater);
+/// assert_eq!(g!("Ç").cmp(g!("Ç̄")), Ordering::Less);
+/// ```
+///
+/// [NFD]: https://www.unicode.org/reports/tr15/#Norm_Forms
+/// [USV]: #method.to_usv
 #[derive(Eq)]
 #[repr(transparent)]
 pub struct Grapheme(str);
@@ -1244,9 +1293,68 @@ impl fmt::Display for Grapheme {
     }
 }
 
+#[inline]
+fn map_pair<A, AG, GA, G, O>(
+    ascii: A,
+    a_g: AG,
+    g_a: GA,
+    grapheme: G,
+) -> impl FnOnce(&Grapheme, &Grapheme) -> O
+where
+    A: FnOnce(&u8, &u8) -> O,
+    AG: FnOnce(u8, &Grapheme) -> O,
+    GA: FnOnce(&Grapheme, u8) -> O,
+    G: FnOnce(&Grapheme, &Grapheme) -> O,
+{
+    |first, second| match (first.len(), second.len()) {
+        (1, 1) => ascii(&first.0.as_bytes()[0], &second.0.as_bytes()[0]),
+        (1, _) => a_g(first.0.as_bytes()[0], second),
+        (_, 1) => g_a(first, second.0.as_bytes()[0]),
+        _ => grapheme(first, second),
+    }
+}
+
+#[inline]
+fn map_usvs<U, O>(usv: U, grapheme: O) -> impl FnOnce(&Grapheme) -> O
+where
+    U: FnOnce(char) -> O,
+{
+    |g| {
+        let mut iter = g.0.nfd();
+        let c = unsafe { iter.next().unwrap_unchecked() };
+        if iter.next().is_some() {
+            grapheme
+        } else {
+            usv(c)
+        }
+    }
+}
+
+impl PartialOrd for Grapheme {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Grapheme {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        map_pair(
+            Ord::cmp,
+            |a, b| map_usvs(|b| (a as u32).cmp(&(b as u32)), std::cmp::Ordering::Greater)(b),
+            |a, b| map_usvs(|a| (a as u32).cmp(&(b as u32)), std::cmp::Ordering::Less)(a),
+            |a, b| a.0.nfd().cmp(b.0.nfd()),
+        )(self, other)
+    }
+}
+
 impl PartialEq for Grapheme {
     fn eq(&self, other: &Self) -> bool {
-        self.0.nfd().eq(other.0.nfd())
+        map_pair(
+            PartialEq::eq,
+            |a, b| map_usvs(|b| a as u32 == b as u32, false)(b),
+            |a, b| map_usvs(|a| a as u32 == b as u32, false)(a),
+            |a, b| a.0.nfd().eq(b.0.nfd()),
+        )(self, other)
     }
 }
 

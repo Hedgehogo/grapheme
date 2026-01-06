@@ -58,6 +58,41 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// assert_eq!(g, Some(story));
 /// ```
+///
+/// # Normalization
+///
+/// `Graphemes` stores an unnormalized string slice. For some
+/// operations, it is normalized on the fly. In most cases, these
+/// performance losses are minimal and less significant than losses
+/// when allocating a normalized string.
+///
+/// Implementations of traits such as [`Hash`] and [`PartialEq`] rely
+/// on a [NFD] normalized version of a string representing a grapheme
+/// cluster:
+///
+/// ```
+/// # use grapheme::prelude::*;
+/// use std::hash::{DefaultHasher, Hash, Hasher};
+/// use std::cmp::Ordering;
+///
+/// # fn main() {
+/// // Within NFC
+/// let canonical = gs!("caf\u{00E9}");
+/// let non_canonical = gs!("cafe\u{0301}");
+///
+/// assert_eq!(gs!("café"), canonical);
+/// assert_eq!(canonical, non_canonical);
+/// assert_eq!(calculate_hash(&canonical), calculate_hash(&non_canonical));
+/// # }
+///
+/// fn calculate_hash<T: Hash>(t: &T) -> u64 {
+///     let mut s = DefaultHasher::new();
+///     t.hash(&mut s);
+///     s.finish()
+/// }
+/// ```
+///
+/// [NFD]: https://www.unicode.org/reports/tr15/#Norm_Forms
 #[derive(Eq)]
 #[repr(transparent)]
 pub struct Graphemes(str);

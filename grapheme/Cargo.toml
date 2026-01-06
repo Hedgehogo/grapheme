@@ -16,3 +16,11 @@ grapheme_macro = "2"
 icu_properties = "2"
 unicode-segmentation = { workspace = true }
 unicode-normalization = { workspace = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+rand = "0.9"
+
+[[bench]]
+name = "normalization"
+harness = false
