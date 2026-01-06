@@ -251,7 +251,7 @@ impl MaybeGraphemeOwned {
     /// // First, cast `MaybeGraphemeOwned` to `Option<&GraphemeOwned>` with
     /// // `as_ref`, then consume *that* with `map`, leaving `text` on the
     /// // stack.
-    /// let length: Option<usize> = grapheme.as_ref().map(|g| g.len());
+    /// let length: Option<_> = grapheme.as_ref().map(|g| g.len());
     /// println!("still can print grapheme: {grapheme:?}");
     /// ```
     pub fn as_ref(&self) -> Option<&GraphemeOwned> {

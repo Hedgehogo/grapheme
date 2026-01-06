@@ -11,6 +11,7 @@ use std::{
     cmp::PartialEq,
     fmt,
     hash::Hash,
+    num::NonZeroUsize,
     str::{Bytes, Chars},
 };
 use unicode_normalization::UnicodeNormalization;
@@ -84,13 +85,13 @@ use unicode_segmentation::UnicodeSegmentation;
 /// let len = strange.len();
 ///
 /// // strange has nineteen bytes
-/// assert_eq!(3, len);
+/// assert_eq!(3, len.get());
 ///
 /// // We can re-build a grapheme out of ptr and len. This is all unsafe because
 /// // we are responsible for making sure the two components are valid:
 /// let g = unsafe {
 ///     // First, we build a &[u8]...
-///     let slice = slice::from_raw_parts(ptr, len);
+///     let slice = slice::from_raw_parts(ptr, len.get());
 ///
 ///     // ... and then convert that slice into a grapheme slice
 ///     str::from_utf8(slice).ok().and_then(Grapheme::from_usvs)
@@ -289,19 +290,19 @@ impl Grapheme {
     /// ```
     /// # use grapheme::prelude::*;
     /// let len = g!('A').len();
-    /// assert_eq!(len, 1);
+    /// assert_eq!(len.get(), 1);
     ///
     /// let len = g!('ß').len();
-    /// assert_eq!(len, 2);
+    /// assert_eq!(len.get(), 2);
     ///
     /// let len = g!('ℝ').len();
-    /// assert_eq!(len, 3);
+    /// assert_eq!(len.get(), 3);
     ///
     /// let len = g!('💣').len();
-    /// assert_eq!(len, 4);
+    /// assert_eq!(len.get(), 4);
     ///
     /// let len = g!("🤦‍♂️").len();
-    /// assert_eq!(len, 13);
+    /// assert_eq!(len.get(), 13);
     /// ```
     ///
     /// The `&Graphemes` type guarantees that its contents are UTF-8, and so we can compare the length it
@@ -314,13 +315,13 @@ impl Grapheme {
     /// let rm = g!("र्म");
     ///
     /// // can be represented as three and nine bytes, respectively
-    /// assert_eq!(3, ka.len());
-    /// assert_eq!(9, rm.len());
+    /// assert_eq!(3, ka.len().get());
+    /// assert_eq!(9, rm.len().get());
     ///
     /// // as a &Graphemes, these two are encoded in UTF-8
     /// let karma = gs!("कर्म");
     ///
-    /// let len = ka.len() + rm.len();
+    /// let len = ka.len().get() + rm.len().get();
     ///
     /// // we can see that they take twelve bytes in total...
     /// assert_eq!(12, karma.len());
@@ -330,12 +331,11 @@ impl Grapheme {
     /// ```
     ///
     /// [USV]: #method.to_usv
-    #[expect(clippy::len_without_is_empty)]
     #[must_use]
     #[inline]
     #[doc(alias = "len_utf8")]
-    pub const fn len(&self) -> usize {
-        self.as_str().len()
+    pub const fn len(&self) -> NonZeroUsize {
+        NonZeroUsize::new(self.as_str().len()).unwrap()
     }
 
     /// Checks if a `Grapheme` is a digit in the given radix.
@@ -1306,7 +1306,7 @@ where
     GA: FnOnce(&Grapheme, u8) -> O,
     G: FnOnce(&Grapheme, &Grapheme) -> O,
 {
-    |first, second| match (first.len(), second.len()) {
+    |first, second| match (first.as_str().len(), second.as_str().len()) {
         (1, 1) => ascii(&first.0.as_bytes()[0], &second.0.as_bytes()[0]),
         (1, _) => a_g(first.0.as_bytes()[0], second),
         (_, 1) => g_a(first, second.0.as_bytes()[0]),
