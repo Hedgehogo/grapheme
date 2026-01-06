@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "grapheme"
-version = "1.2.1"
+version = "1.3.0"
 dependencies = [
  "criterion",
  "grapheme_macro 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
