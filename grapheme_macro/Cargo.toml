@@ -1,6 +1,6 @@
 [package]
 name = "grapheme_macro"
-version = "2.0.0"
+version = "3.0.0"
 authors = ["Hedgehogo"]
 description = "Macros for the `grapheme` crate"
 license = "MIT OR Apache-2.0"
@@ -17,3 +17,5 @@ proc-macro = true
 syn = "2.0"
 quote = "1.0"
 unicode-segmentation = { workspace = true }
+unicode-normalization = { workspace = true }
+proc-macro2 = "1"
