@@ -2,7 +2,10 @@
 //!
 //! *[See also the `Grapheme` type.](Grapheme)*
 
-use crate::GraphemeOwned;
+use super::{
+    GraphemeOwned,
+    normalization::{Normalization, Unnormalized},
+};
 use icu_properties::{
     CodePointMapData,
     props::{CanonicalCombiningClass, GeneralCategory, GraphemeClusterBreak},
@@ -11,10 +14,10 @@ use std::{
     cmp::PartialEq,
     fmt,
     hash::Hash,
+    marker::PhantomData,
     num::NonZeroUsize,
     str::{Bytes, Chars},
 };
-use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Grapheme` type represents a single character. More specifically, since
@@ -61,13 +64,13 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// ```should_panic
 /// # use grapheme::prelude::*;
-/// Grapheme::from_usvs("ab").unwrap();
+/// Grapheme::<Unnormalized>::from_usvs("ab").unwrap();
 /// ```
 ///
 /// ```no_run
 /// # use grapheme::prelude::*;
 /// // Undefined behavior
-/// let _ = unsafe { Grapheme::from_usvs_unchecked("ab") };
+/// let _ = unsafe { Grapheme::<Unnormalized>::from_usvs_unchecked("ab") };
 /// ```
 ///
 /// # Representation
@@ -148,11 +151,13 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// [NFD]: https://www.unicode.org/reports/tr15/#Norm_Forms
 /// [USV]: #method.to_usv
-#[derive(Eq)]
 #[repr(transparent)]
-pub struct Grapheme(str);
+pub struct Grapheme<N: Normalization = Unnormalized> {
+    phantom: PhantomData<N>,
+    inner: str,
+}
 
-impl Grapheme {
+impl<N: Normalization> Grapheme<N> {
     /// Alias for [`from_usvs`](#method.from_usvs).
     #[inline]
     #[deprecated(since = "1.2.0", note = "use `from_usvs` instead")]
@@ -197,7 +202,7 @@ impl Grapheme {
     ///
     /// ```
     /// # use grapheme::prelude::*;
-    /// let c = Grapheme::from_usvs("ab");
+    /// let c = Grapheme::<Unnormalized>::from_usvs("ab");
     ///
     /// assert_eq!(None, c);
     /// ```
@@ -206,7 +211,7 @@ impl Grapheme {
     #[doc(alias = "from_chars", alias = "from_code_points", alias = "from_str")]
     pub fn from_usvs(value: &str) -> Option<&Self> {
         let mut iter = value.graphemes(true);
-        matches!((iter.next(), iter.next()), (Some(_), None))
+        (matches!((iter.next(), iter.next()), (Some(_), None)) && N::is_normalized(value))
             .then(|| unsafe { Self::from_usvs_unchecked(value) })
     }
 
@@ -1040,7 +1045,7 @@ impl Grapheme {
     #[inline]
     #[doc(alias = "is_char", alias = "is_code_point")]
     pub fn is_usv(&self) -> bool {
-        let mut iter = self.0.chars();
+        let mut iter = self.inner.chars();
         matches!((iter.next(), iter.next()), (Some(_), None))
     }
 
@@ -1072,7 +1077,7 @@ impl Grapheme {
     #[inline]
     #[doc(alias = "to_char", alias = "to_code_point")]
     pub fn to_usv(&self) -> Option<char> {
-        let mut iter = self.0.chars();
+        let mut iter = self.inner.chars();
         if let (Some(c), None) = (iter.next(), iter.next()) {
             Some(c)
         } else {
@@ -1110,7 +1115,7 @@ impl Grapheme {
     #[doc(alias = "chars")]
     #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
     pub fn code_points(&self) -> Chars<'_> {
-        self.0.chars()
+        self.inner.chars()
     }
 
     /// Returns an iterator over the bytes of a `&Grapheme`.
@@ -1134,7 +1139,7 @@ impl Grapheme {
     #[inline]
     #[deprecated(since = "1.2.0", note = "use `.as_bytes().iter()` instead")]
     pub fn bytes(&self) -> Bytes<'_> {
-        self.0.bytes()
+        self.inner.bytes()
     }
 
     /// Returns a string slice of this `Grapheme`'s contents.
@@ -1164,7 +1169,7 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub const fn as_str(&self) -> &str {
-        &self.0
+        &self.inner
     }
 
     /// Returns a byte slice of this `Grapheme`'s contents.
@@ -1194,11 +1199,11 @@ impl Grapheme {
     #[must_use]
     #[inline]
     pub const fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
+        self.inner.as_bytes()
     }
 
     /// Converts from `&Grapheme` to `GraphemeOwned`.
-    pub fn to_owned(&self) -> GraphemeOwned {
+    pub fn to_owned(&self) -> GraphemeOwned<N> {
         GraphemeOwned::from_ref(self)
     }
 
@@ -1231,7 +1236,7 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn to_first_usv(&self) -> (char, &str) {
-        let mut iter = self.0.chars();
+        let mut iter = self.inner.chars();
         // The operation never falls because the grapheme always contains at
         // least one [USV].
         let first = iter.next().unwrap();
@@ -1267,16 +1272,18 @@ impl Grapheme {
     /// ```
     #[inline]
     pub fn to_last_usv(&self) -> (&str, char) {
-        let mut iter = self.0.char_indices().rev();
+        let mut iter = self.inner.char_indices().rev();
         // Never falls because the grapheme always contains at least one code
         // point.
         let (i, last) = iter.next().unwrap();
-        let (rest, _) = self.0.split_at(i);
+        let (rest, _) = self.inner.split_at(i);
         (rest, last)
     }
 }
 
-impl fmt::Debug for Grapheme {
+impl Grapheme {}
+
+impl<N: Normalization> fmt::Debug for Grapheme<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("g'")?;
         for i in self.as_str().chars() {
@@ -1287,133 +1294,86 @@ impl fmt::Debug for Grapheme {
     }
 }
 
-impl fmt::Display for Grapheme {
+impl<N: Normalization> fmt::Display for Grapheme<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.inner, f)
     }
 }
 
-#[inline]
-fn map_pair<A, AG, GA, G, O>(
-    ascii: A,
-    a_g: AG,
-    g_a: GA,
-    grapheme: G,
-) -> impl FnOnce(&Grapheme, &Grapheme) -> O
-where
-    A: FnOnce(&u8, &u8) -> O,
-    AG: FnOnce(u8, &Grapheme) -> O,
-    GA: FnOnce(&Grapheme, u8) -> O,
-    G: FnOnce(&Grapheme, &Grapheme) -> O,
-{
-    |first, second| match (first.as_str().len(), second.as_str().len()) {
-        (1, 1) => ascii(&first.0.as_bytes()[0], &second.0.as_bytes()[0]),
-        (1, _) => a_g(first.0.as_bytes()[0], second),
-        (_, 1) => g_a(first, second.0.as_bytes()[0]),
-        _ => grapheme(first, second),
-    }
-}
-
-#[inline]
-fn map_usvs<U, O>(usv: U, grapheme: O) -> impl FnOnce(&Grapheme) -> O
-where
-    U: FnOnce(char) -> O,
-{
-    |g| {
-        let mut iter = g.0.nfd();
-        let c = unsafe { iter.next().unwrap_unchecked() };
-        if iter.next().is_some() {
-            grapheme
-        } else {
-            usv(c)
-        }
-    }
-}
-
-impl PartialOrd for Grapheme {
+impl<N: Normalization> PartialOrd for Grapheme<N> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Grapheme {
+impl<N: Normalization> Ord for Grapheme<N> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        map_pair(
-            Ord::cmp,
-            |a, b| map_usvs(|b| (a as u32).cmp(&(b as u32)), std::cmp::Ordering::Greater)(b),
-            |a, b| map_usvs(|a| (a as u32).cmp(&(b as u32)), std::cmp::Ordering::Less)(a),
-            |a, b| a.0.nfd().cmp(b.0.nfd()),
-        )(self, other)
+        N::cmp_grapheme(self, other)
     }
 }
 
-impl PartialEq for Grapheme {
+impl<N: Normalization> PartialEq for Grapheme<N> {
     fn eq(&self, other: &Self) -> bool {
-        map_pair(
-            PartialEq::eq,
-            |a, b| map_usvs(|b| a as u32 == b as u32, false)(b),
-            |a, b| map_usvs(|a| a as u32 == b as u32, false)(a),
-            |a, b| a.0.nfd().eq(b.0.nfd()),
-        )(self, other)
+        N::eq_grapheme(self, other)
     }
 }
 
-impl Hash for Grapheme {
+impl<N: Normalization> Eq for Grapheme<N> {}
+
+impl<N: Normalization> Hash for Grapheme<N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for usv in self.0.nfd() {
-            state.write_u32(usv as u32);
-        }
+        N::hash_grapheme(self, state);
     }
 }
 
-impl ToOwned for Grapheme {
-    type Owned = GraphemeOwned;
+impl<N: Normalization> ToOwned for Grapheme<N> {
+    type Owned = GraphemeOwned<N>;
 
     fn to_owned(&self) -> Self::Owned {
         Grapheme::to_owned(self)
     }
 }
 
-impl AsRef<str> for Grapheme {
+impl<N: Normalization> AsRef<str> for Grapheme<N> {
     fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
 
-impl AsRef<[u8]> for Grapheme {
+impl<N: Normalization> AsRef<[u8]> for Grapheme<N> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl AsRef<Grapheme> for Grapheme {
-    fn as_ref(&self) -> &Grapheme {
+impl<N: Normalization> AsRef<Grapheme<N>> for Grapheme<N> {
+    fn as_ref(&self) -> &Grapheme<N> {
         self
     }
 }
 
-impl<'src> From<&'src Grapheme> for Box<Grapheme> {
-    fn from(value: &'src Grapheme) -> Self {
+impl<'src, N: Normalization> From<&'src Grapheme<N>> for Box<Grapheme<N>> {
+    fn from(value: &'src Grapheme<N>) -> Self {
         let value: Box<str> = Box::from(value.as_str());
         // SAFETY: This is ok because Grapheme is #[repr(transparent)]
-        unsafe { Box::from_raw(Box::into_raw(value) as *mut Grapheme) }
+        unsafe { Box::from_raw(Box::into_raw(value) as *mut Grapheme<N>) }
     }
 }
 
-impl From<Box<Grapheme>> for Box<str> {
-    fn from(value: Box<Grapheme>) -> Self {
+impl<N: Normalization> From<Box<Grapheme<N>>> for Box<str> {
+    fn from(value: Box<Grapheme<N>>) -> Self {
         // SAFETY: This is ok because Grapheme is #[repr(transparent)]
         unsafe { Box::from_raw(Box::into_raw(value) as *mut str) }
     }
 }
 
-impl From<Box<Grapheme>> for Box<[u8]> {
-    fn from(value: Box<Grapheme>) -> Self {
+impl<N: Normalization> From<Box<Grapheme<N>>> for Box<[u8]> {
+    fn from(value: Box<Grapheme<N>>) -> Self {
         Box::<str>::from(value).into()
     }
 }
 
-impl Clone for Box<Grapheme> {
+impl<N: Normalization> Clone for Box<Grapheme<N>> {
     fn clone(&self) -> Self {
         self.as_ref().into()
     }

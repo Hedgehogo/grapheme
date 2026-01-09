@@ -3,11 +3,13 @@
 //! *[See also the `GraphemeOwned` type.](GraphemeOwned)*
 
 use super::Grapheme;
+use super::normalization::{Normalization, Unnormalized};
 use smallvec::SmallVec;
 use std::{
     borrow::{Borrow, BorrowMut},
     fmt,
     hash::Hash,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     str,
 };
@@ -63,28 +65,37 @@ type GraphemeOwnedInner = SmallVec<[u8; USIZE_BYTES]>;
 /// the heap.
 #[derive(Clone, Eq)]
 #[repr(transparent)]
-pub struct GraphemeOwned(GraphemeOwnedInner);
+pub struct GraphemeOwned<N: Normalization = Unnormalized> {
+    phantom: PhantomData<N>,
+    inner: GraphemeOwnedInner,
+}
 
-impl GraphemeOwned {
+impl<N: Normalization> GraphemeOwned<N> {
     /// Converts from `&Grapheme` to `GraphemeOwned`.
-    pub fn from_ref(grapheme: &Grapheme) -> Self {
+    pub fn from_ref(grapheme: &Grapheme<N>) -> Self {
         let bytes = grapheme.as_bytes();
-        Self(SmallVec::from_slice(bytes))
+        Self {
+            phantom: PhantomData,
+            inner: SmallVec::from_slice(bytes),
+        }
     }
 
     /// Converts from `Box<Grapheme>` to `GraphemeOwned`
-    pub fn from_box(grapheme: Box<Grapheme>) -> GraphemeOwned {
+    pub fn from_box(grapheme: Box<Grapheme<N>>) -> Self {
         let bytes: Box<[u8]> = grapheme.into();
-        Self(SmallVec::from_vec(bytes.into()))
+        Self {
+            phantom: PhantomData,
+            inner: SmallVec::from_vec(bytes.into()),
+        }
     }
 
     /// Converts from `GraphemeOwned` to `Box<Grapheme>`
-    pub fn into_box(self) -> Box<Grapheme> {
-        let bytes = self.0.into_boxed_slice();
+    pub fn into_box(self) -> Box<Grapheme<N>> {
+        let bytes = self.inner.into_boxed_slice();
         // SAFETY: This is ok because `[u8]` previously contained `Grapheme`.
         let string = unsafe { str::from_boxed_utf8_unchecked(bytes) };
         // SAFETY: This is ok because `Grapheme` is `#[repr[transparent]]`.
-        unsafe { Box::from_raw(Box::<str>::into_raw(string) as *mut Grapheme) }
+        unsafe { Box::from_raw(Box::<str>::into_raw(string) as *mut Grapheme<N>) }
     }
 
     /// Returns this `GraphemeOwned` capacity, in bytes.
@@ -97,92 +108,92 @@ impl GraphemeOwned {
     /// assert!(g.capacity() >= 2);
     /// ```
     pub fn capacity(&self) -> usize {
-        self.0.capacity()
+        self.inner.capacity()
     }
 
     /// Converts from `&GraphemeOwned` to `&Grapheme`
-    pub fn as_grapheme(&self) -> &Grapheme {
-        let bytes = self.0.as_slice();
+    pub fn as_grapheme(&self) -> &Grapheme<N> {
+        let bytes = self.inner.as_slice();
         // SAFETY: This is ok because `[u8]` previously contained `Grapheme`.
         let string = unsafe { <str>::from_utf8_unchecked(bytes) };
         // SAFETY: This is ok because `Grapheme` is `#[repr[transparent]]`.
-        unsafe { &*(string as *const str as *const Grapheme) }
+        unsafe { &*(string as *const str as *const Grapheme<N>) }
     }
 
     /// Converts from `&mut GraphemeOwned` to `&mut Grapheme`
-    pub fn as_grapheme_mut(&mut self) -> &mut Grapheme {
-        let bytes = self.0.as_mut_slice();
+    pub fn as_grapheme_mut(&mut self) -> &mut Grapheme<N> {
+        let bytes = self.inner.as_mut_slice();
         // SAFETY: This is ok because `[u8]` previously contained `Grapheme`.
         let string = unsafe { <str>::from_utf8_unchecked_mut(bytes) };
         // SAFETY: This is ok because `Grapheme` is `#[repr[transparent]]`.
-        unsafe { &mut *(string as *mut str as *mut Grapheme) }
+        unsafe { &mut *(string as *mut str as *mut Grapheme<N>) }
     }
 }
 
-impl Deref for GraphemeOwned {
-    type Target = Grapheme;
+impl<N: Normalization> Deref for GraphemeOwned<N> {
+    type Target = Grapheme<N>;
 
     fn deref(&self) -> &Self::Target {
         GraphemeOwned::as_grapheme(self)
     }
 }
 
-impl DerefMut for GraphemeOwned {
+impl<N: Normalization> DerefMut for GraphemeOwned<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         GraphemeOwned::as_grapheme_mut(self)
     }
 }
 
-impl Borrow<Grapheme> for GraphemeOwned {
-    fn borrow(&self) -> &Grapheme {
+impl<N: Normalization> Borrow<Grapheme<N>> for GraphemeOwned<N> {
+    fn borrow(&self) -> &Grapheme<N> {
         GraphemeOwned::as_grapheme(self)
     }
 }
 
-impl BorrowMut<Grapheme> for GraphemeOwned {
-    fn borrow_mut(&mut self) -> &mut Grapheme {
+impl<N: Normalization> BorrowMut<Grapheme<N>> for GraphemeOwned<N> {
+    fn borrow_mut(&mut self) -> &mut Grapheme<N> {
         GraphemeOwned::as_grapheme_mut(self)
     }
 }
 
-impl fmt::Debug for GraphemeOwned {
+impl<N: Normalization> fmt::Debug for GraphemeOwned<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_grapheme(), f)
     }
 }
 
-impl fmt::Display for GraphemeOwned {
+impl<N: Normalization> fmt::Display for GraphemeOwned<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.as_grapheme(), f)
     }
 }
 
-impl PartialEq for GraphemeOwned {
+impl<N: Normalization> PartialEq for GraphemeOwned<N> {
     fn eq(&self, other: &Self) -> bool {
         self.deref() == other.deref()
     }
 }
 
-impl Hash for GraphemeOwned {
+impl<N: Normalization> Hash for GraphemeOwned<N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.deref().hash(state);
     }
 }
 
-impl<'src> From<&'src Grapheme> for GraphemeOwned {
-    fn from(value: &'src Grapheme) -> Self {
+impl<'src, N: Normalization> From<&'src Grapheme<N>> for GraphemeOwned<N> {
+    fn from(value: &'src Grapheme<N>) -> Self {
         Self::from_ref(value)
     }
 }
 
-impl From<Box<Grapheme>> for GraphemeOwned {
-    fn from(value: Box<Grapheme>) -> Self {
+impl<N: Normalization> From<Box<Grapheme<N>>> for GraphemeOwned<N> {
+    fn from(value: Box<Grapheme<N>>) -> Self {
         Self::from_box(value)
     }
 }
 
-impl From<GraphemeOwned> for Box<Grapheme> {
-    fn from(value: GraphemeOwned) -> Self {
+impl<N: Normalization> From<GraphemeOwned<N>> for Box<Grapheme<N>> {
+    fn from(value: GraphemeOwned<N>) -> Self {
         value.into_box()
     }
 }
@@ -205,17 +216,27 @@ impl From<GraphemeOwned> for Box<Grapheme> {
 /// has a buffer length of zero when it contains `None`.
 #[derive(Default, Clone, Eq)]
 #[repr(transparent)]
-pub struct MaybeGraphemeOwned(GraphemeOwnedInner);
+pub struct MaybeGraphemeOwned<N: Normalization = Unnormalized> {
+    phantom: PhantomData<N>,
+    inner: GraphemeOwnedInner,
+}
 
-impl MaybeGraphemeOwned {
+impl<N: Normalization> MaybeGraphemeOwned<N> {
     /// Converts from `Option<GraphemeOwned>` to `MaybeGraphemeOwned`.
-    pub fn from_option(value: Option<GraphemeOwned>) -> Self {
-        Self(value.map(|grapheme| grapheme.0).unwrap_or_default())
+    pub fn from_option(value: Option<GraphemeOwned<N>>) -> Self {
+        let inner = value.map(|grapheme| grapheme.inner).unwrap_or_default();
+        Self {
+            inner,
+            phantom: PhantomData,
+        }
     }
 
     /// Converts from `MaybeGraphemeOwned` to `Option<GraphemeOwned>`.
-    pub fn into_option(self) -> Option<GraphemeOwned> {
-        self.is_some().then(|| GraphemeOwned(self.0))
+    pub fn into_option(self) -> Option<GraphemeOwned<N>> {
+        self.is_some().then(|| GraphemeOwned {
+            inner: self.inner,
+            phantom: PhantomData,
+        })
     }
 
     /// Returns `true` if the option is a [`Some`] value.
@@ -251,7 +272,7 @@ impl MaybeGraphemeOwned {
     #[must_use]
     #[inline]
     pub fn is_none(&self) -> bool {
-        self.0.is_empty()
+        self.inner.is_empty()
     }
 
     /// Converts from `&MaybeGraphemeOwned` to `Option<&GraphemeOwned>`
@@ -267,11 +288,11 @@ impl MaybeGraphemeOwned {
     /// let length: Option<_> = grapheme.as_ref().map(|g| g.len());
     /// println!("still can print grapheme: {grapheme:?}");
     /// ```
-    pub fn as_ref(&self) -> Option<&GraphemeOwned> {
+    pub fn as_ref(&self) -> Option<&GraphemeOwned<N>> {
         self.is_some().then(|| {
-            let inner = &self.0;
+            let inner = &self.inner;
             // SAFETY: This is ok because `&GraphemeOwned` is `#[repr[transparent]]`.
-            unsafe { &*(inner as *const GraphemeOwnedInner as *const GraphemeOwned) }
+            unsafe { &*(inner as *const GraphemeOwnedInner as *const GraphemeOwned<N>) }
         })
     }
 
@@ -288,11 +309,11 @@ impl MaybeGraphemeOwned {
     /// }
     /// assert_eq!(x, Some(g!('e').to_owned()).into());
     /// ```
-    pub fn as_mut(&mut self) -> Option<&mut GraphemeOwned> {
+    pub fn as_mut(&mut self) -> Option<&mut GraphemeOwned<N>> {
         self.is_some().then(|| {
-            let inner = &mut self.0;
+            let inner = &mut self.inner;
             // SAFETY: This is ok because `&GraphemeOwned` is `#[repr[transparent]]`.
-            unsafe { &mut *(inner as *mut GraphemeOwnedInner as *mut GraphemeOwned) }
+            unsafe { &mut *(inner as *mut GraphemeOwnedInner as *mut GraphemeOwned<N>) }
         })
     }
 
@@ -313,7 +334,7 @@ impl MaybeGraphemeOwned {
     /// let x: MaybeGraphemeOwned = None.into();
     /// assert_eq!(x.as_deref(), None);
     /// ```
-    pub fn as_deref(&self) -> Option<&Grapheme> {
+    pub fn as_deref(&self) -> Option<&Grapheme<N>> {
         self.as_ref().map(|grapheme| grapheme.deref())
     }
 
@@ -323,37 +344,37 @@ impl MaybeGraphemeOwned {
     /// Leaves the original `MaybeGraphemeOwned` in-place, creating a new one
     /// containing a mutable reference to the inner type's [`Deref::Target`]
     /// type.
-    pub fn as_deref_mut(&mut self) -> Option<&mut Grapheme> {
+    pub fn as_deref_mut(&mut self) -> Option<&mut Grapheme<N>> {
         self.as_mut().map(|grapheme| grapheme.deref_mut())
     }
 }
 
-impl fmt::Debug for MaybeGraphemeOwned {
+impl<N: Normalization> fmt::Debug for MaybeGraphemeOwned<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.as_ref(), f)
     }
 }
 
-impl PartialEq for MaybeGraphemeOwned {
+impl<N: Normalization> PartialEq for MaybeGraphemeOwned<N> {
     fn eq(&self, other: &Self) -> bool {
         self.as_deref() == other.as_deref()
     }
 }
 
-impl Hash for MaybeGraphemeOwned {
+impl<N: Normalization> Hash for MaybeGraphemeOwned<N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.as_deref().hash(state);
     }
 }
 
-impl From<Option<GraphemeOwned>> for MaybeGraphemeOwned {
-    fn from(value: Option<GraphemeOwned>) -> Self {
+impl<N: Normalization> From<Option<GraphemeOwned<N>>> for MaybeGraphemeOwned<N> {
+    fn from(value: Option<GraphemeOwned<N>>) -> Self {
         Self::from_option(value)
     }
 }
 
-impl From<MaybeGraphemeOwned> for Option<GraphemeOwned> {
-    fn from(value: MaybeGraphemeOwned) -> Self {
+impl<N: Normalization> From<MaybeGraphemeOwned<N>> for Option<GraphemeOwned<N>> {
+    fn from(value: MaybeGraphemeOwned<N>) -> Self {
         value.into_option()
     }
 }

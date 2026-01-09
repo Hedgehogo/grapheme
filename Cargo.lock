@@ -200,7 +200,7 @@ name = "grapheme"
 version = "1.3.0"
 dependencies = [
  "criterion",
- "grapheme_macro 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "grapheme_macro 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "icu_properties",
  "rand",
  "smallvec",
@@ -210,21 +210,25 @@ dependencies = [
 
 [[package]]
 name = "grapheme_macro"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
+ "proc-macro2",
  "quote",
  "syn",
+ "unicode-normalization",
  "unicode-segmentation",
 ]
 
 [[package]]
 name = "grapheme_macro"
-version = "2.0.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f21484955f6e06f7a5251baee0e91f75b114390d6dbca2fa47e8b5b6c13c30c"
+checksum = "cb9d60c9144cb0117c63d6ad697a8bb97d37f64f0a6b6b5a5bb4dca675694191"
 dependencies = [
+ "proc-macro2",
  "quote",
  "syn",
+ "unicode-normalization",
  "unicode-segmentation",
 ]
 
