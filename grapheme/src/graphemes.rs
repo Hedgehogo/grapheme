@@ -6,7 +6,7 @@ use super::{
     Grapheme,
     normalization::{Normalization, Unnormalized},
 };
-use std::{fmt, hash::Hash, marker::PhantomData, str::Chars};
+use std::{fmt, hash::Hash, marker::PhantomData};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Graphemes` type, also called a ‘grapheme slice’. It is usually seen
@@ -101,13 +101,6 @@ pub struct Graphemes<N: Normalization = Unnormalized> {
 }
 
 impl<N: Normalization> Graphemes<N> {
-    /// Alias for [`from_usvs`](#method.from_usvs).
-    #[inline]
-    #[deprecated(since = "1.2.0", note = "use `from_usvs` instead")]
-    pub fn from_code_points(inner: &str) -> Option<&Self> {
-        Self::from_usvs(inner)
-    }
-
     /// Converts a `&str` to a `&Graphemes`.
     ///
     /// Note that all `Graphemes`s are valid [`str`]s, and can be cast to one
@@ -402,41 +395,6 @@ impl<N: Normalization> Graphemes<N> {
         IterWithIndices::new(self)
     }
 
-    /// Returns an iterator over the [`char`]s of a `&Graphemes`.
-    ///
-    /// As a `&Graphemes` consists of valid Unicode, we can iterate through a
-    /// `&Graphemes` by [`char`]. This method returns such an iterator.
-    ///
-    /// It's important to remember that [`char`] represents a Unicode Scalar
-    /// Value, and might not match your idea of what a 'character' is.
-    ///
-    /// [`char`]: prim@char    
-    ///
-    /// # Examples
-    ///
-    /// Basic usage:
-    ///
-    /// ```
-    /// # use grapheme::prelude::*;
-    /// let yes = gs!("y̆es");
-    ///
-    /// # #[expect(deprecated)]
-    /// let mut usvs = yes.code_points();
-    ///
-    /// assert_eq!(Some('y'), usvs.next()); // not 'y̆'
-    /// assert_eq!(Some('\u{0306}'), usvs.next());
-    /// assert_eq!(Some('e'), usvs.next());
-    /// assert_eq!(Some('s'), usvs.next());
-    ///
-    /// assert_eq!(None, usvs.next());
-    /// ```
-    #[inline]
-    #[doc(alias = "chars", alias = "usvs")]
-    #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
-    pub fn code_points(&self) -> Chars<'_> {
-        self.inner.chars()
-    }
-
     /// Returns a string slice of this `&Graphemes`’s contents.
     ///
     /// Note that equal graphemes do not always have the same string
@@ -604,10 +562,6 @@ impl From<Box<str>> for Box<Graphemes> {
         unsafe { Box::from_raw(Box::into_raw(value) as *mut Graphemes<Unnormalized>) }
     }
 }
-
-/// Alias for [`Iter`].
-#[deprecated(since = "1.2.0", note = "use `Iter` instead")]
-pub type GraphemesIter<'g, N> = Iter<'g, N>;
 
 /// An iterator over the [`Grapheme`]s of a graphemes slice.
 ///

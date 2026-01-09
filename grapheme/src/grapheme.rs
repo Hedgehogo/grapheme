@@ -10,14 +10,7 @@ use icu_properties::{
     CodePointMapData,
     props::{CanonicalCombiningClass, GeneralCategory, GraphemeClusterBreak},
 };
-use std::{
-    cmp::PartialEq,
-    fmt,
-    hash::Hash,
-    marker::PhantomData,
-    num::NonZeroUsize,
-    str::{Bytes, Chars},
-};
+use std::{cmp::PartialEq, fmt, hash::Hash, marker::PhantomData, num::NonZeroUsize};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Grapheme` type represents a single character. More specifically, since
@@ -158,13 +151,6 @@ pub struct Grapheme<N: Normalization = Unnormalized> {
 }
 
 impl<N: Normalization> Grapheme<N> {
-    /// Alias for [`from_usvs`](#method.from_usvs).
-    #[inline]
-    #[deprecated(since = "1.2.0", note = "use `from_usvs` instead")]
-    pub fn from_code_points(value: &str) -> Option<&Self> {
-        Self::from_usvs(value)
-    }
-
     /// Converts a `&str` to a `&Grapheme`.
     ///
     /// Note that all `Grapheme`s are valid [`str`]s, and can be cast to one
@@ -213,14 +199,6 @@ impl<N: Normalization> Grapheme<N> {
         let mut iter = value.graphemes(true);
         (matches!((iter.next(), iter.next()), (Some(_), None)) && N::is_normalized(value))
             .then(|| unsafe { Self::from_usvs_unchecked(value) })
-    }
-
-    /// Alias for [`from_usvs_unchecked`](#method.from_usvs_unchecked).
-    #[inline]
-    #[expect(clippy::missing_safety_doc)]
-    #[deprecated(since = "1.2.0", note = "use `from_usvs_unchecked` instead")]
-    pub const unsafe fn from_code_points_unchecked(value: &str) -> &Self {
-        unsafe { Self::from_usvs_unchecked(value) }
     }
 
     /// Converts a `&str` to a `&Grapheme`, ignoring validity.
@@ -1021,13 +999,6 @@ impl<N: Normalization> Grapheme<N> {
         }
     }
 
-    /// Alias for [`is_usv`](#method.is_usv).
-    #[inline]
-    #[deprecated(since = "1.2.0", note = "use `is_usv` instead")]
-    pub fn is_code_point(&self) -> bool {
-        self.is_usv()
-    }
-
     /// Checks if the `Grapheme` contains exactly one [USV].
     ///
     /// [USV]: #method.to_usv
@@ -1047,13 +1018,6 @@ impl<N: Normalization> Grapheme<N> {
     pub fn is_usv(&self) -> bool {
         let mut iter = self.inner.chars();
         matches!((iter.next(), iter.next()), (Some(_), None))
-    }
-
-    /// Alias for [`to_usv`](#method.to_usv).
-    #[inline]
-    #[deprecated(since = "1.2.0", note = "use `to_usv` instead")]
-    pub fn to_code_point(&self) -> Option<char> {
-        self.to_usv()
     }
 
     /// Returns `Some` if the `Grapheme` contains exactly one Unicode scalar
@@ -1083,63 +1047,6 @@ impl<N: Normalization> Grapheme<N> {
         } else {
             None
         }
-    }
-
-    /// Returns an iterator over the [USV]s of a `&Grapheme`.
-    ///
-    /// As a `&Grapheme` consists of valid UTF-8, we can iterate through a
-    /// `&Grapheme` by [USV]. This method returns such an iterator.
-    ///
-    /// It's important to remember that [USV] might not match your idea of what a
-    /// 'character' is.
-    ///
-    /// [USV]: #method.to_usv
-    ///
-    /// # Examples
-    ///
-    /// Basic usage:
-    ///
-    /// ```
-    /// # use grapheme::prelude::*;
-    /// let y = g!("y̆");
-    ///
-    /// # #[expect(deprecated)]
-    /// let mut usvs = y.code_points();
-    ///
-    /// assert_eq!(Some('y'), usvs.next()); // not 'y̆'
-    /// assert_eq!(Some('\u{0306}'), usvs.next());
-    ///
-    /// assert_eq!(None, usvs.next());
-    /// ```
-    #[inline]
-    #[doc(alias = "chars")]
-    #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
-    pub fn code_points(&self) -> Chars<'_> {
-        self.inner.chars()
-    }
-
-    /// Returns an iterator over the bytes of a `&Grapheme`.
-    ///
-    /// As a `&Grapheme` consists of a sequence of bytes, we can iterate
-    /// through a `&Grapheme` by byte. This method returns such an iterator.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use grapheme::prelude::*;
-    /// # #[expect(deprecated)]
-    /// let mut bytes = g!("y̆").bytes();
-    ///
-    /// assert_eq!(Some(b'y'), bytes.next());
-    /// assert_eq!(Some(0xCC), bytes.next());
-    /// assert_eq!(Some(0x86), bytes.next());
-    ///
-    /// assert_eq!(None, bytes.next());
-    /// ```
-    #[inline]
-    #[deprecated(since = "1.2.0", note = "use `.as_bytes().iter()` instead")]
-    pub fn bytes(&self) -> Bytes<'_> {
-        self.inner.bytes()
     }
 
     /// Returns a string slice of this `Grapheme`'s contents.
