@@ -116,8 +116,8 @@ fn grapheme_macro(literal: Lit) -> syn::Result<TokenStream2> {
 /// If the string is not normalized according to the suffix, it will be normalized
 /// forcibly:
 /// ```no_compile
-/// let c = g!("\u0043\u0327"c);
-/// assert_eq!(c.as_str(), "\u00c7");
+/// let c = g!("\u{0043}\u{0327}"c);
+/// assert_eq!(c.as_str(), "\u{00c7}");
 /// ```
 #[proc_macro]
 pub fn g(input: TokenStream) -> TokenStream {
@@ -133,15 +133,31 @@ pub fn g(input: TokenStream) -> TokenStream {
 fn graphemes_macro(literal: LitStr) -> syn::Result<TokenStream2> {
     let span = literal.span();
     let normalization = Normalization::from_suffix(literal.suffix(), span)?;
-    let _path = normalization.to_path();
+    let path = normalization.to_path();
     let inner = normalization.normalize(literal.value());
     let lit_str = LitStr::new(&inner, span);
     Ok(quote! {
-        ::grapheme::Graphemes::from_usvs(#lit_str)
+        unsafe { ::grapheme::Graphemes::<#path>::from_usvs_unchecked(#lit_str) }
     })
 }
 
-/// Literal for `Graphemes`
+/// Creates a `Graphemes` from a string literal.
+///
+/// One of the following suffixes can be placed after the literal:
+/// - `u` - creates a `Graphemes<Unnormalized>`
+/// - `d` - creates a `Graphemes<Nfd>`
+/// - `c` - creates a `Graphemes<Nfc>`
+/// - `kd` - creates a `Graphemes<Nfkd>`
+/// - `kc` - creates a `Graphemes<Nfkc>`
+///
+/// If the suffix is missing, `Graphemes<Unnormalized>` will be created by default.
+///
+/// If the string is not normalized according to the suffix, it will be normalized
+/// forcibly:
+/// ```no_compile
+/// let c = gs!("\u{0043}\u{0327}"c);
+/// assert_eq!(c.as_str(), "\u{00c7}");
+/// ```
 #[proc_macro]
 pub fn gs(input: TokenStream) -> TokenStream {
     let result = syn::parse(input).and_then(graphemes_macro);
@@ -221,13 +237,31 @@ mod tests {
         {
             let with_nf = syn::parse2(quote! { "a" }).unwrap();
             let output = graphemes_macro(with_nf).unwrap();
-            let expected = quote! { ::grapheme::Graphemes::from_usvs("a") };
+            let expected = quote! { unsafe { ::grapheme::Graphemes::<::grapheme::prelude::Unnormalized>::from_usvs_unchecked("a") } };
             assert_eq!(output.to_string(), expected.to_string());
         }
         {
-            let with_nf = syn::parse2(quote! { "aa"u }).unwrap();
+            let with_nf = syn::parse2(quote! { "Ç"u }).unwrap();
+            let output = grapheme_macro(with_nf).unwrap();
+            let expected = quote! { unsafe { ::grapheme::Grapheme::<::grapheme::prelude::Unnormalized>::from_usvs_unchecked("Ç") } };
+            assert_eq!(output.to_string(), expected.to_string());
+        }
+        {
+            let with_nf = syn::parse2(quote! { "C\u{327}"u }).unwrap();
+            let output = grapheme_macro(with_nf).unwrap();
+            let expected = quote! { unsafe { ::grapheme::Grapheme::<::grapheme::prelude::Unnormalized>::from_usvs_unchecked("C\u{327}") } };
+            assert_eq!(output.to_string(), expected.to_string());
+        }
+        {
+            let with_nf = syn::parse2(quote! { "Ç"d }).unwrap();
             let output = graphemes_macro(with_nf).unwrap();
-            let expected = quote! { ::grapheme::Graphemes::from_usvs("aa") };
+            let expected = quote! { unsafe { ::grapheme::Graphemes::<::grapheme::prelude::Nfd>::from_usvs_unchecked("C\u{327}") } };
+            assert_eq!(output.to_string(), expected.to_string());
+        }
+        {
+            let with_nf = syn::parse2(quote! { "C\u{327}"c }).unwrap();
+            let output = grapheme_macro(with_nf).unwrap();
+            let expected = quote! { unsafe { ::grapheme::Grapheme::<::grapheme::prelude::Nfc>::from_usvs_unchecked("Ç") } };
             assert_eq!(output.to_string(), expected.to_string());
         }
     }
@@ -237,7 +271,7 @@ mod tests {
     fn graphemes_macro_test_not_eq() {
         let with_nf = syn::parse2(quote! { "a" }).unwrap();
         let output = graphemes_macro(with_nf).unwrap();
-        let expected = quote! { ::grapheme::Graphemes::from_usvs("b") };
+        let expected = quote! { unsafe { ::grapheme::Graphemes::<::grapheme::prelude::Unnormalized>::from_usvs_unchecked("b") } };
         assert_eq!(output.to_string(), expected.to_string());
     }
 
@@ -245,6 +279,13 @@ mod tests {
     #[should_panic]
     fn graphemes_macro_test_not_inner() {
         let with_nf = syn::parse2(quote! { 10 }).unwrap();
+        let _ = graphemes_macro(with_nf).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn graphemes_macro_test_not_nf() {
+        let with_nf = syn::parse2(quote! { "abc"m }).unwrap();
         let _ = graphemes_macro(with_nf).unwrap();
     }
 }
