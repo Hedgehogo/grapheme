@@ -2,9 +2,11 @@
 //!
 //! *[See also the `Graphemes` type.](Graphemes)*
 
-use super::Grapheme;
-use std::{fmt, hash::Hash, str::Chars};
-use unicode_normalization::UnicodeNormalization;
+use super::{
+    Grapheme,
+    normalization::{Normalization, Unnormalized},
+};
+use std::{fmt, hash::Hash, marker::PhantomData, str::Chars};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Graphemes` type, also called a ‘grapheme slice’. It is usually seen
@@ -52,7 +54,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///     let slice = slice::from_raw_parts(ptr, len);
 ///
 ///     // ... and then convert that slice into a grapheme slice
-///     str::from_utf8(slice).ok().map(Graphemes::from_usvs)
+///     str::from_utf8(slice).ok().and_then(Graphemes::from_usvs)
 /// };
 ///
 /// assert_eq!(g, Some(story));
@@ -92,23 +94,107 @@ use unicode_segmentation::UnicodeSegmentation;
 /// ```
 ///
 /// [NFD]: https://www.unicode.org/reports/tr15/#Norm_Forms
-#[derive(Eq)]
 #[repr(transparent)]
-pub struct Graphemes(str);
+pub struct Graphemes<N: Normalization = Unnormalized> {
+    phantom: PhantomData<N>,
+    inner: str,
+}
 
-impl Graphemes {
+impl<N: Normalization> Graphemes<N> {
     /// Alias for [`from_usvs`](#method.from_usvs).
     #[inline]
     #[deprecated(since = "1.2.0", note = "use `from_usvs` instead")]
-    pub fn from_code_points(inner: &str) -> &Self {
+    pub fn from_code_points(inner: &str) -> Option<&Self> {
         Self::from_usvs(inner)
     }
 
-    /// Converts a `&str` into a `&Graphemes`.
+    /// Converts a `&str` to a `&Graphemes`.
+    ///
+    /// Note that all `Graphemes`s are valid [`str`]s, and can be cast to one
+    /// with [`as_str`]:
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let gs = gs!("y̆es");
+    /// let s = gs.as_str();
+    ///
+    /// assert_eq!("y̆es", s);
+    /// ```
+    ///
+    /// However, the reverse is not true: not all valid [`str`]s are valid
+    /// `Graphemes`s. `from_usvs()` will return `None` if the input is
+    /// not a valid value for a `Grapheme`.
+    ///
+    /// For an unsafe version of this function which ignores these checks, see
+    /// [`from_usvs_unchecked`].
+    ///
+    /// [`as_str`]: #method.as_str
+    /// [`from_usvs_unchecked`]: #method.from_usvs_unchecked
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let c = Graphemes::from_usvs("y̆es");
+    ///
+    /// assert_eq!(Some(gs!("y̆es")), c);
+    /// ```
+    ///
+    /// Returning `None` when the input is not a valid `Graphemes`:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let c = Graphemes::<Nfd>::from_usvs("\u{00c7}");
+    ///
+    /// assert_eq!(None, c);
+    /// ```
     #[must_use]
     #[inline]
     #[doc(alias = "from_chars", alias = "from_code_points", alias = "from_str")]
-    pub fn from_usvs(inner: &str) -> &Self {
+    pub fn from_usvs(inner: &str) -> Option<&Self> {
+        N::is_normalized(inner).then(|| unsafe { Self::from_usvs_unchecked(inner) })
+    }
+
+    /// Converts a `&str` to a `&Graphemes`, ignoring validity.
+    ///
+    /// Note that all `Graphemes`s are valid [`str`]s, and can be cast to one with [`as_str`]:
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let g = gs!("y̆es");
+    /// let s = g.as_str();
+    ///
+    /// assert_eq!("y̆es", s);
+    /// ```
+    ///
+    /// However, the reverse is not true: not all valid [`str`]s are valid
+    /// `Graphemes`s. `from_usvs_unchecked()` will ignore this, and
+    /// blindly cast to `Grapheme`, possibly creating an invalid one.
+    ///
+    /// [`as_str`]: #method.as_str
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe, as it may construct invalid `Grapheme` values.
+    ///
+    /// For a safe version of this function, see the [`from_usvs`] function.
+    ///
+    /// [`from_usvs`]: #method.from_usvs
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let c = unsafe { Graphemes::from_usvs_unchecked("y̆es") };
+    ///
+    /// assert_eq!(gs!("y̆es"), c);
+    /// ```
+    #[must_use]
+    #[inline]
+    #[doc(alias = "from_chars", alias = "from_code_points", alias = "from_str")]
+    pub unsafe fn from_usvs_unchecked(inner: &str) -> &Self {
         // SAFETY: This is ok because Graphemes is #[repr(transparent)]
         unsafe { &*(inner as *const str as *const Self) }
     }
@@ -141,7 +227,8 @@ impl Graphemes {
     #[must_use]
     #[inline]
     pub fn into_boxed_str(self: Box<Self>) -> Box<str> {
-        self.into()
+        // SAFETY: This is ok because Grapheme is #[repr(transparent)]
+        unsafe { Box::from_raw(Box::into_raw(self) as *mut str) }
     }
 
     /// Converts a `Box<Graphemes>` into a `Box<[u8]>` without copying or allocating.
@@ -172,7 +259,7 @@ impl Graphemes {
     #[must_use]
     #[inline]
     pub fn into_boxed_bytes(self: Box<Self>) -> Box<[u8]> {
-        self.into()
+        self.into_boxed_str().into_boxed_bytes()
     }
 
     /// Returns the length of `self`.
@@ -276,7 +363,7 @@ impl Graphemes {
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<N> {
         Iter::new(self)
     }
 
@@ -311,7 +398,7 @@ impl Graphemes {
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter_with_indices(&self) -> IterWithIndices {
+    pub fn iter_with_indices(&self) -> IterWithIndices<N> {
         IterWithIndices::new(self)
     }
 
@@ -347,7 +434,7 @@ impl Graphemes {
     #[doc(alias = "chars", alias = "usvs")]
     #[deprecated(since = "1.2.0", note = "use `.as_str().chars()` instead")]
     pub fn code_points(&self) -> Chars<'_> {
-        self.0.chars()
+        self.inner.chars()
     }
 
     /// Returns a string slice of this `&Graphemes`’s contents.
@@ -377,7 +464,7 @@ impl Graphemes {
     #[must_use]
     #[inline]
     pub const fn as_str(&self) -> &str {
-        &self.0
+        &self.inner
     }
 
     /// Returns a byte slice of this `&Graphemes`'s contents.
@@ -407,71 +494,101 @@ impl Graphemes {
     #[must_use]
     #[inline]
     pub const fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
+        self.inner.as_bytes()
     }
 }
 
-impl fmt::Debug for Graphemes {
+impl<N: Normalization> fmt::Debug for Graphemes<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("g")?;
-        fmt::Debug::fmt(&self.0, f)
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
-impl fmt::Display for Graphemes {
+impl<N: Normalization> fmt::Display for Graphemes<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.inner, f)
     }
 }
 
-impl PartialEq for Graphemes {
+impl<N: Normalization> PartialEq for Graphemes<N> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.nfd().eq(other.0.nfd())
+        N::eq_str(self.as_str(), other.as_str())
     }
 }
 
-impl Hash for Graphemes {
+impl<N: Normalization> Eq for Graphemes<N> {}
+
+impl<N: Normalization> Hash for Graphemes<N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for usv in self.0.nfd() {
-            state.write_u32(usv as u32);
-        }
-        state.write_u8(0xFF);
+        N::hash_str(self.as_str(), state);
     }
 }
 
-impl AsRef<str> for Graphemes {
+impl<N: Normalization> AsRef<str> for Graphemes<N> {
     fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
 
-impl AsRef<[u8]> for Graphemes {
+impl<N: Normalization> AsRef<[u8]> for Graphemes<N> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl AsRef<Graphemes> for Graphemes {
-    fn as_ref(&self) -> &Graphemes {
+impl<N: Normalization> AsRef<Graphemes<N>> for Graphemes<N> {
+    fn as_ref(&self) -> &Graphemes<N> {
         self
+    }
+}
+
+impl<'src, N: Normalization> From<&'src Graphemes<N>> for &'src str {
+    fn from(value: &'src Graphemes<N>) -> Self {
+        value.as_str()
+    }
+}
+
+impl<'src, N: Normalization> From<&'src Graphemes<N>> for Box<Graphemes<N>> {
+    fn from(value: &'src Graphemes<N>) -> Self {
+        let boxed_str: Box<str> = value.as_str().into();
+        // SAFETY: This is ok because Grapheme is #[repr(transparent)]
+        unsafe { Box::from_raw(Box::into_raw(boxed_str) as *mut Graphemes<N>) }
+    }
+}
+
+impl<N: Normalization> From<Box<Graphemes<N>>> for Box<str> {
+    fn from(value: Box<Graphemes<N>>) -> Self {
+        value.into_boxed_str()
+    }
+}
+
+impl<N: Normalization> From<Box<Graphemes<N>>> for Box<[u8]> {
+    fn from(value: Box<Graphemes<N>>) -> Self {
+        value.into_boxed_bytes()
+    }
+}
+
+impl<N: Normalization> Clone for Box<Graphemes<N>> {
+    fn clone(&self) -> Self {
+        self.as_ref().into()
+    }
+}
+
+impl<'src, N: Normalization> IntoIterator for &'src Graphemes<N> {
+    type Item = &'src Grapheme<N>;
+
+    type IntoIter = Iter<'src, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter::new(self)
     }
 }
 
 impl<'src> From<&'src str> for &'src Graphemes {
     fn from(value: &'src str) -> Self {
-        Graphemes::from_usvs(value)
-    }
-}
-
-impl<'src> From<&'src Graphemes> for &'src str {
-    fn from(value: &'src Graphemes) -> Self {
-        value.as_str()
-    }
-}
-
-impl<'src> From<&'src Graphemes> for Box<Graphemes> {
-    fn from(value: &'src Graphemes) -> Self {
-        value.as_str().into()
+        // SAFETY: This is ok because unnormalized `Graphemes` are being created
+        unsafe { Graphemes::from_usvs_unchecked(value) }
     }
 }
 
@@ -484,42 +601,13 @@ impl<'src> From<&'src str> for Box<Graphemes> {
 impl From<Box<str>> for Box<Graphemes> {
     fn from(value: Box<str>) -> Self {
         // SAFETY: This is ok because Grapheme is #[repr(transparent)]
-        unsafe { Box::from_raw(Box::into_raw(value) as *mut Graphemes) }
-    }
-}
-
-impl From<Box<Graphemes>> for Box<str> {
-    fn from(value: Box<Graphemes>) -> Self {
-        // SAFETY: This is ok because Grapheme is #[repr(transparent)]
-        unsafe { Box::from_raw(Box::into_raw(value) as *mut str) }
-    }
-}
-
-impl From<Box<Graphemes>> for Box<[u8]> {
-    fn from(value: Box<Graphemes>) -> Self {
-        Box::<str>::from(value).into()
-    }
-}
-
-impl Clone for Box<Graphemes> {
-    fn clone(&self) -> Self {
-        self.as_ref().into()
-    }
-}
-
-impl<'src> IntoIterator for &'src Graphemes {
-    type Item = &'src Grapheme;
-
-    type IntoIter = Iter<'src>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Iter::new(self)
+        unsafe { Box::from_raw(Box::into_raw(value) as *mut Graphemes<Unnormalized>) }
     }
 }
 
 /// Alias for [`Iter`].
 #[deprecated(since = "1.2.0", note = "use `Iter` instead")]
-pub type GraphemesIter<'g> = Iter<'g>;
+pub type GraphemesIter<'g, N> = Iter<'g, N>;
 
 /// An iterator over the [`Grapheme`]s of a graphemes slice.
 ///
@@ -528,15 +616,17 @@ pub type GraphemesIter<'g> = Iter<'g>;
 ///
 /// [`iter`]: Graphemes::iter    
 #[derive(Debug, Clone)]
-pub struct Iter<'g> {
+pub struct Iter<'g, N: Normalization> {
     iter: unicode_segmentation::Graphemes<'g>,
+    phantom: PhantomData<N>,
 }
 
-impl<'g> Iter<'g> {
+impl<'g, N: Normalization> Iter<'g, N> {
     /// Creates new `Iter`.
-    pub fn new(graphemes: &'g Graphemes) -> Self {
+    pub fn new(graphemes: &'g Graphemes<N>) -> Self {
         Self {
             iter: graphemes.as_str().graphemes(true),
+            phantom: PhantomData,
         }
     }
 
@@ -546,8 +636,8 @@ impl<'g> Iter<'g> {
     }
 }
 
-impl<'g> Iterator for Iter<'g> {
-    type Item = &'g Grapheme;
+impl<'g, N: Normalization> Iterator for Iter<'g, N> {
+    type Item = &'g Grapheme<N>;
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -562,7 +652,7 @@ impl<'g> Iterator for Iter<'g> {
     }
 }
 
-impl DoubleEndedIterator for Iter<'_> {
+impl<N: Normalization> DoubleEndedIterator for Iter<'_, N> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.iter
@@ -577,15 +667,17 @@ impl DoubleEndedIterator for Iter<'_> {
 ///
 /// [`iter_with_indices`]: Graphemes::iter_with_indices
 #[derive(Debug, Clone)]
-pub struct IterWithIndices<'g> {
+pub struct IterWithIndices<'g, N: Normalization> {
     iter: unicode_segmentation::GraphemeIndices<'g>,
+    phantom: PhantomData<N>,
 }
 
-impl<'g> IterWithIndices<'g> {
+impl<'g, N: Normalization> IterWithIndices<'g, N> {
     /// Creates new `IterWithIndices`.
-    pub fn new(graphemes: &'g Graphemes) -> Self {
+    pub fn new(graphemes: &'g Graphemes<N>) -> Self {
         Self {
             iter: graphemes.as_str().grapheme_indices(true),
+            phantom: PhantomData,
         }
     }
 
@@ -595,8 +687,8 @@ impl<'g> IterWithIndices<'g> {
     }
 }
 
-impl<'g> Iterator for IterWithIndices<'g> {
-    type Item = (usize, &'g Grapheme);
+impl<'g, N: Normalization> Iterator for IterWithIndices<'g, N> {
+    type Item = (usize, &'g Grapheme<N>);
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -611,7 +703,7 @@ impl<'g> Iterator for IterWithIndices<'g> {
     }
 }
 
-impl DoubleEndedIterator for IterWithIndices<'_> {
+impl<N: Normalization> DoubleEndedIterator for IterWithIndices<'_, N> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.iter

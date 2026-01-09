@@ -14,7 +14,7 @@ where
     E: Fn(&Grapheme) -> O,
 {
     move |b| {
-        let graphemes = Graphemes::from_usvs(input.as_str());
+        let graphemes: &Graphemes = input.as_str().into();
         b.iter(|| {
             for c in graphemes.iter() {
                 black_box(eq(c));

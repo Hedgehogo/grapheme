@@ -51,11 +51,19 @@ pub(crate) trait NormalizationSealed {
     fn is_normalized(slice: &str) -> bool {
         Self::iter(slice).eq(slice.chars())
     }
+
+    fn eq_str(lhs: &str, rhs: &str) -> bool {
+        lhs.eq(rhs)
+    }
+
+    fn hash_str<H: std::hash::Hasher>(s: &str, state: &mut H) {
+        s.hash(state);
+    }
 }
 
 /// The `Normalization` trait describes the form of string normalization.
 #[expect(private_bounds)]
-pub trait Normalization: NormalizationSealed + Sized {
+pub trait Normalization: NormalizationSealed + Sized + 'static {
     fn eq_grapheme(lhs: &Grapheme<Self>, rhs: &Grapheme<Self>) -> bool {
         lhs.as_str().eq(rhs.as_str())
     }
@@ -82,6 +90,17 @@ impl NormalizationSealed for Unnormalized {
 
     fn is_normalized(_slice: &str) -> bool {
         true
+    }
+
+    fn eq_str(lhs: &str, rhs: &str) -> bool {
+        lhs.nfd().eq(rhs.nfd())
+    }
+
+    fn hash_str<H: std::hash::Hasher>(s: &str, state: &mut H) {
+        for usv in s.nfd() {
+            state.write_u32(usv as u32);
+        }
+        state.write_u8(0xFF);
     }
 }
 
