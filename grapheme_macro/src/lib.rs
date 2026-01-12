@@ -8,7 +8,7 @@ use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug)]
-enum Normalization {
+enum Nf {
     Unnormalized,
     Nfd,
     Nfc,
@@ -16,15 +16,15 @@ enum Normalization {
     Nfkc,
 }
 
-impl Normalization {
+impl Nf {
     fn from_suffix(suffix: &str, span: Span) -> syn::Result<Self> {
         match suffix {
-            "" => Ok(Normalization::Unnormalized),
-            "u" => Ok(Normalization::Unnormalized),
-            "d" => Ok(Normalization::Nfd),
-            "c" => Ok(Normalization::Nfc),
-            "kd" => Ok(Normalization::Nfkd),
-            "kc" => Ok(Normalization::Nfkc),
+            "" => Ok(Nf::Unnormalized),
+            "u" => Ok(Nf::Unnormalized),
+            "d" => Ok(Nf::Nfd),
+            "c" => Ok(Nf::Nfc),
+            "kd" => Ok(Nf::Nfkd),
+            "kc" => Ok(Nf::Nfkc),
             _ => {
                 let message = "suffix can only be 'u', 'd', 'c', 'kd' or 'kc'";
                 Err(syn::Error::new(span, message))
@@ -53,41 +53,77 @@ impl Normalization {
 
     fn normalize(&self, s: String) -> String {
         match self {
-            Normalization::Unnormalized => s,
-            Normalization::Nfd => s.chars().nfd().collect(),
-            Normalization::Nfc => s.chars().nfc().collect(),
-            Normalization::Nfkd => s.chars().nfkd().collect(),
-            Normalization::Nfkc => s.chars().nfkc().collect(),
+            Nf::Unnormalized => s,
+            Nf::Nfd => s.chars().nfd().collect(),
+            Nf::Nfc => s.chars().nfc().collect(),
+            Nf::Nfkd => s.chars().nfkd().collect(),
+            Nf::Nfkc => s.chars().nfkc().collect(),
         }
+    }
+}
+
+enum GCount {
+    More,
+    One,
+    Zero,
+}
+
+fn categorize_str(s: &str) -> GCount {
+    let mut iter = s.graphemes(true);
+    match (iter.next(), iter.next()) {
+        (Some(_), Some(_)) => GCount::More,
+        (Some(_), None) => GCount::One,
+        _ => GCount::Zero,
+    }
+}
+
+fn validate_grapheme(
+    string: &str,
+    inner: &str,
+) -> impl FnOnce(&'static str, &'static str, &'static str, &'static str) -> Result<(), &'static str>
+{
+    move |mm, mo, zz, zo| match (categorize_str(inner), categorize_str(string)) {
+        (GCount::More, GCount::More) => Err(mm),
+        (GCount::More, _) => Err(mo),
+        (GCount::One, _) => Ok(()),
+        (GCount::Zero, GCount::Zero) => Err(zz),
+        (GCount::Zero, _) => Err(zo),
     }
 }
 
 #[inline]
 fn grapheme_macro(literal: Lit) -> syn::Result<TokenStream2> {
     let span = literal.span();
-    let normalization = Normalization::from_suffix(literal.suffix(), span)?;
-    let path = normalization.to_path();
+    let nf = Nf::from_suffix(literal.suffix(), span)?;
+    let path = nf.to_path();
     let inner = match literal {
         Lit::Str(lit_str) => {
             let string = lit_str.value();
-            let mut iter = string.graphemes(true);
+            let inner = nf.normalize(string.clone());
 
-            match (iter.next(), iter.next()) {
-                (Some(_), Some(_)) => {
-                    let message = "string must not contain more than one grapheme cluster";
-                    return Err(syn::Error::new_spanned(lit_str, message));
-                }
-
-                (Some(_), _) => string,
-
-                _ => {
-                    let message = "string must not be empty";
-                    return Err(syn::Error::new_spanned(lit_str, message));
-                }
-            }
+            validate_grapheme(&string, &inner)(
+                "string must not contain more than one grapheme cluster",
+                "is this normalization from, a grapheme cluster splits into several clusters, string must not contain more than one grapheme cluster",
+                "string must not be empty",
+                "is this normalization from, string becomes empty, string must not be empty",
+            )
+            .map(move |_| inner)
+            .map_err(|message| syn::Error::new_spanned(lit_str, message))?
         }
 
-        Lit::Char(lit_char) => std::iter::once(lit_char.value()).collect(),
+        Lit::Char(lit_char) => {
+            let string: String = std::iter::once(lit_char.value()).collect();
+            let inner = nf.normalize(string.clone());
+
+            validate_grapheme(&string, &inner)(
+                "char must not contain more than one grapheme cluster",
+                "is this normalization from, a grapheme cluster splits into several clusters, string must not contain more than one grapheme cluster",
+                "char must not be empty",
+                "is this normalization from, grapheme cluster becomes empty, grapheme cluster must not be empty",
+            )
+            .map(move |_| inner)
+            .map_err(|message| syn::Error::new_spanned(lit_char, message))?
+        }
 
         _ => {
             let message = "a utf8 string literal or a char literal was expected";
@@ -95,7 +131,6 @@ fn grapheme_macro(literal: Lit) -> syn::Result<TokenStream2> {
         }
     };
 
-    let inner = normalization.normalize(inner);
     let lit_str = LitStr::new(&inner, span);
     Ok(quote! {
         unsafe { ::grapheme::Grapheme::<#path>::from_usvs_unchecked(#lit_str) }
@@ -132,9 +167,9 @@ pub fn g(input: TokenStream) -> TokenStream {
 #[inline]
 fn graphemes_macro(literal: LitStr) -> syn::Result<TokenStream2> {
     let span = literal.span();
-    let normalization = Normalization::from_suffix(literal.suffix(), span)?;
-    let path = normalization.to_path();
-    let inner = normalization.normalize(literal.value());
+    let nf = Nf::from_suffix(literal.suffix(), span)?;
+    let path = nf.to_path();
+    let inner = nf.normalize(literal.value());
     let lit_str = LitStr::new(&inner, span);
     Ok(quote! {
         unsafe { ::grapheme::Graphemes::<#path>::from_usvs_unchecked(#lit_str) }
