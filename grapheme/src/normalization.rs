@@ -59,23 +59,31 @@ pub(crate) trait NormalizationSealed {
     fn hash_str<H: std::hash::Hasher>(s: &str, state: &mut H) {
         s.hash(state);
     }
+
+    fn id() -> usize;
 }
 
 /// The `Normalization` trait describes the form of string normalization.
 #[expect(private_bounds)]
 pub trait Normalization: NormalizationSealed + Sized + 'static {
+    /// Implementation of [`PartialEq::eq`] for `Grapheme<Self>`
     fn eq_grapheme(lhs: &Grapheme<Self>, rhs: &Grapheme<Self>) -> bool {
         lhs.as_str().eq(rhs.as_str())
     }
 
+    /// Implementation of [`Ord::cmp`] for `Grapheme<Self>`
     fn cmp_grapheme(lhs: &Grapheme<Self>, rhs: &Grapheme<Self>) -> Ordering {
         lhs.as_str().cmp(rhs.as_str())
     }
 
+    /// Implementation of [`Hash::hash`] for `Grapheme<Self>`
     fn hash_grapheme<H: std::hash::Hasher>(grapheme: &Grapheme<Self>, state: &mut H) {
         grapheme.as_str().hash(state);
     }
 }
+
+/// The `NormalizationLossless` trait describes the lossless form of string normalization.
+pub trait NormalizationLossless: Normalization {}
 
 /// The `Unnormalized` type implements the [`Normalization`] trait for cases where the
 /// string has not been normalized.
@@ -101,6 +109,10 @@ impl NormalizationSealed for Unnormalized {
             state.write_u32(usv as u32);
         }
         state.write_u8(0xFF);
+    }
+
+    fn id() -> usize {
+        0
     }
 }
 
@@ -130,6 +142,8 @@ impl Normalization for Unnormalized {
     }
 }
 
+impl NormalizationLossless for Unnormalized {}
+
 /// The `Nfd` type describes the normalization from D (canonical decomposition).
 pub struct Nfd();
 
@@ -139,9 +153,14 @@ impl NormalizationSealed for Nfd {
     fn iter<'src>(slice: &'src str) -> Self::Iter<'src> {
         slice.chars().nfd()
     }
+
+    fn id() -> usize {
+        1
+    }
 }
 
 impl Normalization for Nfd {}
+impl NormalizationLossless for Nfd {}
 
 /// The `Nfc` type describes the normalization from C (canonical composition).
 pub struct Nfc();
@@ -152,9 +171,14 @@ impl NormalizationSealed for Nfc {
     fn iter<'src>(slice: &'src str) -> Self::Iter<'src> {
         slice.chars().nfc()
     }
+
+    fn id() -> usize {
+        2
+    }
 }
 
 impl Normalization for Nfc {}
+impl NormalizationLossless for Nfc {}
 
 /// The `Nfkd` type describes the normalization from KD (compatibility decomposition).
 pub struct Nfkd();
@@ -164,6 +188,10 @@ impl NormalizationSealed for Nfkd {
 
     fn iter<'src>(slice: &'src str) -> Self::Iter<'src> {
         slice.chars().nfkd()
+    }
+
+    fn id() -> usize {
+        3
     }
 }
 
@@ -177,6 +205,10 @@ impl NormalizationSealed for Nfkc {
 
     fn iter<'src>(slice: &'src str) -> Self::Iter<'src> {
         slice.chars().nfkc()
+    }
+
+    fn id() -> usize {
+        4
     }
 }
 

@@ -3,10 +3,10 @@
 //! *[See also the `GraphemeOwned` type.](GraphemeOwned)*
 
 use super::Grapheme;
-use super::normalization::{Normalization, Unnormalized};
+use super::normalization::{Normalization, NormalizationLossless, Unnormalized};
 use smallvec::SmallVec;
 use std::{
-    borrow::{Borrow, BorrowMut},
+    borrow::{Borrow, BorrowMut, Cow},
     fmt,
     hash::Hash,
     marker::PhantomData,
@@ -376,5 +376,87 @@ impl<N: Normalization> From<Option<GraphemeOwned<N>>> for MaybeGraphemeOwned<N> 
 impl<N: Normalization> From<MaybeGraphemeOwned<N>> for Option<GraphemeOwned<N>> {
     fn from(value: MaybeGraphemeOwned<N>) -> Self {
         value.into_option()
+    }
+}
+
+/// Converts from `&Grapheme` to `GraphemeOwned<N>`.
+pub(crate) fn normalize<N: NormalizationLossless>(grapheme: &Grapheme) -> Cow<'_, Grapheme<N>> {
+    let mut buf = GraphemeOwnedInner::new();
+    let mut iter_u = grapheme.as_str().char_indices();
+
+    for usv_n in N::iter(grapheme.as_str()) {
+        if buf.is_empty() {
+            let mut init_buf = |s: &str| {
+                let start = s.as_bytes();
+                buf = GraphemeOwnedInner::from_slice(start);
+            };
+
+            match iter_u.next() {
+                Some((i, usv_u)) => {
+                    if usv_n != usv_u {
+                        init_buf(&grapheme.as_str()[0..i])
+                    } else {
+                        continue;
+                    }
+                }
+
+                None => init_buf(grapheme.as_str()),
+            };
+        }
+
+        let mut b = [0u8; 4];
+        let res = usv_n.encode_utf8(&mut b);
+        let res = res.as_bytes();
+        buf.reserve(res.len());
+        for byte in res {
+            buf.push(*byte);
+        }
+    }
+
+    if buf.is_empty() {
+        let value = grapheme.as_str();
+        // SAFETY: this is okay, because it has already been verified that the content
+        // corresponds to the normalized form
+        let g = unsafe { Grapheme::from_usvs_unchecked(value) };
+
+        Cow::Borrowed(g)
+    } else {
+        let g = GraphemeOwned {
+            inner: buf,
+            phantom: PhantomData,
+        };
+
+        Cow::Owned(g)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::{Grapheme, Nfc, Nfd};
+    use unicode_normalization::UnicodeNormalization;
+
+    #[test]
+    fn normalize_test() {
+        let saddle = Grapheme::<Unnormalized>::from_usvs("C\u{0304}\u{0327}").unwrap();
+
+        assert_eq!(
+            saddle.as_str().nfd().collect::<String>(),
+            "C\u{0327}\u{0304}"
+        );
+        assert_eq!(saddle.as_str().nfc().collect::<String>(), "Ç\u{304}");
+
+        let saddle_u = normalize::<Unnormalized>(saddle);
+        assert!(matches!(saddle_u, Cow::Borrowed(_)));
+        assert_eq!(saddle_u.as_str(), "C\u{0304}\u{0327}");
+
+        let saddle_d = normalize::<Nfd>(saddle);
+        assert!(matches!(saddle_d, Cow::Owned(_)));
+        assert_eq!(saddle_d.as_str(), "C\u{0327}\u{0304}");
+
+        let saddle_c = normalize::<Nfc>(saddle);
+        assert!(matches!(saddle_c, Cow::Owned(_)));
+        assert_eq!(saddle_c.as_str(), "Ç\u{304}");
     }
 }

@@ -4,13 +4,13 @@
 
 use super::{
     GraphemeOwned,
-    normalization::{Normalization, Unnormalized},
+    normalization::{Nfc, Nfd, Normalization, NormalizationLossless, Unnormalized},
 };
 use icu_properties::{
     CodePointMapData,
     props::{CanonicalCombiningClass, GeneralCategory, GraphemeClusterBreak},
 };
-use std::{cmp::PartialEq, fmt, hash::Hash, marker::PhantomData, num::NonZeroUsize};
+use std::{borrow::Cow, cmp::PartialEq, fmt, hash::Hash, marker::PhantomData, num::NonZeroUsize};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The `Grapheme` type represents a single character. More specifically, since
@@ -1185,6 +1185,57 @@ impl<N: Normalization> Grapheme<N> {
         let (i, last) = iter.next().unwrap();
         let (rest, _) = self.inner.split_at(i);
         (rest, last)
+    }
+
+    /// Converts `Grapheme<N>` to `Grapheme<Unnormalized>`.
+    #[inline]
+    pub fn to_unnormalized(&self) -> &Grapheme {
+        let value = self.as_str();
+        // SAFETY: This is ok because unnormalized `Graphemes` are being created
+        unsafe { Grapheme::from_usvs_unchecked(value) }
+    }
+
+    /// Converts `Grapheme<N>` to `Grapheme<Nfd>`.
+    ///
+    /// Note that this function uses Unicode normalization algorithm which can be
+    /// expensive in rare cases.
+    #[inline]
+    pub fn to_nfd(&self) -> Cow<'_, Grapheme<Nfd>> {
+        self.to_nf_lossless()
+    }
+
+    /// Converts `Grapheme<N>` to `Grapheme<Nfd>`.
+    ///
+    /// Note that this function uses Unicode normalization algorithm which can be
+    /// expensive in rare cases.
+    #[inline]
+    pub fn to_nfc(&self) -> Cow<'_, Grapheme<Nfc>> {
+        self.to_nf_lossless()
+    }
+
+    /// Converts `Grapheme<N>` to `Grapheme<N1>`.
+    ///
+    /// Note that this function uses Unicode normalization algorithm which can be
+    /// expensive in rare cases.
+    #[inline]
+    pub fn to_nf_lossless<N1: NormalizationLossless>(&self) -> Cow<'_, Grapheme<N1>> {
+        use super::grapheme_owned::normalize;
+
+        if N1::id() == 0 {
+            let value = self.as_str();
+            // SAFETY: This is ok because unnormalized `Graphemes` are being created
+            let g = unsafe { Grapheme::from_usvs_unchecked(value) };
+            return Cow::Borrowed(g);
+        }
+
+        if N1::id() == N::id() {
+            let value = self.as_str();
+            // SAFETY: This is ok because it creates a grapheme of the same type
+            let g = unsafe { Grapheme::from_usvs_unchecked(value) };
+            return Cow::Borrowed(g);
+        }
+
+        normalize(self.to_unnormalized())
     }
 }
 
