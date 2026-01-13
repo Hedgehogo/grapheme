@@ -454,6 +454,14 @@ impl<N: Normalization> Graphemes<N> {
     pub const fn as_bytes(&self) -> &[u8] {
         self.inner.as_bytes()
     }
+
+    /// Converts `Graphemes<N>` to `Graphemes<Unnormalized>`.
+    #[inline]
+    pub const fn as_unnormalized(&self) -> &Graphemes {
+        let value = self.as_str();
+        // SAFETY: This is ok because unnormalized `Graphemes` are being created
+        unsafe { Graphemes::from_usvs_unchecked(value) }
+    }
 }
 
 impl<N: Normalization> fmt::Debug for Graphemes<N> {

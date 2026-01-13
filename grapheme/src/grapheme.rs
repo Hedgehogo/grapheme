@@ -1149,6 +1149,14 @@ impl<N: Normalization> Grapheme<N> {
         self.inner.as_bytes()
     }
 
+    /// Converts `Grapheme<N>` to `Grapheme<Unnormalized>`.
+    #[inline]
+    pub const fn as_unnormalized(&self) -> &Grapheme {
+        let value = self.as_str();
+        // SAFETY: This is ok because unnormalized `Grapheme`s are being created
+        unsafe { Grapheme::from_usvs_unchecked(value) }
+    }
+
     /// Converts from `&Grapheme` to `GraphemeOwned`.
     pub fn to_owned(&self) -> GraphemeOwned<N> {
         GraphemeOwned::from_ref(self)
@@ -1227,14 +1235,6 @@ impl<N: Normalization> Grapheme<N> {
         (rest, last)
     }
 
-    /// Converts `Grapheme<N>` to `Grapheme<Unnormalized>`.
-    #[inline]
-    pub fn to_unnormalized(&self) -> &Grapheme {
-        let value = self.as_str();
-        // SAFETY: This is ok because unnormalized `Graphemes` are being created
-        unsafe { Grapheme::from_usvs_unchecked(value) }
-    }
-
     /// Converts `Grapheme<N>` to `Grapheme<Nfd>`.
     ///
     /// Note that this function uses Unicode normalization algorithm which can be
@@ -1275,7 +1275,7 @@ impl<N: Normalization> Grapheme<N> {
             return Cow::Borrowed(g);
         }
 
-        normalize(self.to_unnormalized())
+        normalize(self.as_unnormalized())
     }
 }
 
