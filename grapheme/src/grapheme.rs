@@ -3,7 +3,7 @@
 //! *[See also the `Grapheme` type.](Grapheme)*
 
 use super::{
-    GraphemeOwned,
+    GraphemeOwned, Graphemes,
     normalization::{Nfc, Nfd, Normalization, NormalizationLossless, Unnormalized},
 };
 use icu_properties::{
@@ -246,6 +246,28 @@ impl<N: Normalization> Grapheme<N> {
     pub const unsafe fn from_usvs_unchecked(value: &str) -> &Self {
         // SAFETY: This is ok because Grapheme is #[repr(transparent)]
         unsafe { &*(value as *const str as *const Self) }
+    }
+
+    /// Converts a `Box<Grapheme>` into a `Box<Graphemes>` without copying or allocating.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let g = g!('f');
+    /// let boxed_grapheme = Box::<Grapheme>::from(g);
+    /// let boxed_graphemes = boxed_grapheme.into_boxed_graphemes();
+    /// assert_eq!(boxed_graphemes.as_str(), g.as_str());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn into_boxed_graphemes(self: Box<Self>) -> Box<Graphemes<N>> {
+        let g_ptr = Box::into_raw(self);
+        let s_ptr = g_ptr as *mut str;
+        let gs_ptr = s_ptr as *mut Graphemes<N>;
+
+        // SAFETY: This is ok because Grapheme and Grpahemes is #[repr(transparent)]
+        unsafe { Box::from_raw(gs_ptr) }
     }
 
     /// Returns the number of bytes this `Grapheme` would need if encoded in UTF-8.
@@ -1049,6 +1071,24 @@ impl<N: Normalization> Grapheme<N> {
         }
     }
 
+    /// Converts `Grapheme` to `Graphemes`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use grapheme::prelude::*;
+    /// let g = g!('f');
+    ///
+    /// assert_eq!(g.as_graphemes().as_str(), g.as_str());
+    /// ```
+    #[must_use]
+    #[inline]
+    pub const fn as_graphemes(&self) -> &Graphemes<N> {
+        let value = self.as_str();
+        // SAFETY: This is ok because it creates graphemes with the same normaliation
+        unsafe { Graphemes::from_usvs_unchecked(value) }
+    }
+
     /// Returns a string slice of this `Grapheme`'s contents.
     ///
     /// Note that equal graphemes do not always have the same string
@@ -1292,6 +1332,12 @@ impl<N: Normalization> ToOwned for Grapheme<N> {
     }
 }
 
+impl<N: Normalization> AsRef<Graphemes<N>> for Grapheme<N> {
+    fn as_ref(&self) -> &Graphemes<N> {
+        self.as_graphemes()
+    }
+}
+
 impl<N: Normalization> AsRef<str> for Grapheme<N> {
     fn as_ref(&self) -> &str {
         self.as_str()
@@ -1318,16 +1364,21 @@ impl<'src, N: Normalization> From<&'src Grapheme<N>> for Box<Grapheme<N>> {
     }
 }
 
+impl<N: Normalization> From<Box<Grapheme<N>>> for Box<Graphemes<N>> {
+    fn from(value: Box<Grapheme<N>>) -> Self {
+        value.into_boxed_graphemes()
+    }
+}
+
 impl<N: Normalization> From<Box<Grapheme<N>>> for Box<str> {
     fn from(value: Box<Grapheme<N>>) -> Self {
-        // SAFETY: This is ok because Grapheme is #[repr(transparent)]
-        unsafe { Box::from_raw(Box::into_raw(value) as *mut str) }
+        value.into_boxed_graphemes().into_boxed_str()
     }
 }
 
 impl<N: Normalization> From<Box<Grapheme<N>>> for Box<[u8]> {
     fn from(value: Box<Grapheme<N>>) -> Self {
-        Box::<str>::from(value).into()
+        value.into_boxed_graphemes().into_boxed_bytes()
     }
 }
 

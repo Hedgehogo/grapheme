@@ -187,7 +187,7 @@ impl<N: Normalization> Graphemes<N> {
     #[must_use]
     #[inline]
     #[doc(alias = "from_chars", alias = "from_code_points", alias = "from_str")]
-    pub unsafe fn from_usvs_unchecked(inner: &str) -> &Self {
+    pub const unsafe fn from_usvs_unchecked(inner: &str) -> &Self {
         // SAFETY: This is ok because Graphemes is #[repr(transparent)]
         unsafe { &*(inner as *const str as *const Self) }
     }
